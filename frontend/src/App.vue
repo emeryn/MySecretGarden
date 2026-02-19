@@ -1,13 +1,8 @@
 <template>
   <div class="layout">
-    
-    <button class="btn-hamburger" @click="menuMobileOuvert = true">☰</button>
-    
-    <div v-if="menuMobileOuvert" class="mobile-overlay" @click="menuMobileOuvert = false"></div>
-
-    <nav :class="['sidebar', { reduit: menuReduit, 'mobile-open': menuMobileOuvert }]">
+    <nav :class="['sidebar', { reduit: menuReduit }]">
       <button class="btn-toggle-menu hide-on-mobile" @click="menuReduit = !menuReduit">{{ menuReduit ? '›' : '‹' }}</button>
-      <button class="btn-close-mobile" @click="menuMobileOuvert = false">×</button>
+      <button class="btn-close-mobile show-on-mobile" @click="menuMobileOuvert = false">×</button>
 
       <div class="logo-container" :class="{ 'logo-reduit': menuReduit }">
         <img :src="logoImg" alt="My Secret Garden Logo" class="logo-img" />
@@ -36,7 +31,7 @@
           <span class="icone">⊞</span> <span class="texte-menu" v-if="!menuReduit">Vue d'ensemble</span>
         </li>
         <li :class="{ actif: vueActive === 'reglages' }" @click="changerVue('reglages')" title="Réglages">
-          <span class="icone">⚙</span> <span class="texte-menu" v-if="!menuReduit">Réglages & IA</span>
+          <span class="icone">⚙</span> <span class="texte-menu" v-if="!menuReduit">Réglages</span>
         </li>
       </ul>
       
@@ -51,6 +46,9 @@
       </div>
     </nav>
     
+    <button class="btn-hamburger show-on-mobile" @click="menuMobileOuvert = true">☰</button>
+    <div v-if="menuMobileOuvert" class="mobile-overlay" @click="menuMobileOuvert = false"></div>
+
     <main class="content">
       
       <div v-if="vueActive === 'potager'" class="vue-potager">
@@ -59,59 +57,71 @@
           <div v-if="pluieGlobaleActive" class="pluie-globale-overlay"></div>
           <div v-if="saisonActive === 'hiver'" class="neige-globale-overlay"></div>
 
-          <div class="hud-top">
-            <div class="panneau-outils">
-              <button :class="['btn-outil', { actif: outilActif === 'main' }]" @click="outilActif = 'main'">⚲ Naviguer</button>
-              <div class="separateur"></div>
-              <button :class="['btn-outil', { actif: outilActif === 'rectangle' }]" @click="outilActif = 'rectangle'">⬚ Tracer un bac</button>
-              <div class="separateur hide-on-mobile-small"></div>
-              
-              <button class="btn-outil arrosoir-global-btn hide-on-mobile-small" @click="declencherArrosageGlobal" title="Arroser tout le potager">🚿 Tout arroser</button>
-              <div class="separateur hide-on-mobile-small"></div>
+          <div class="hud-left toolbar-vertical">
+            <button :class="['btn-tool-v', { actif: outilActif === 'main' }]" @click="outilActif = 'main'" title="Naviguer (Glisser la carte)">⚲</button>
+            <div class="separateur-v"></div>
+            <button :class="['btn-tool-v', { actif: outilActif === 'bac' }]" @click="outilActif = 'bac'" title="Tracer un bac de culture">⬚</button>
+            <button :class="['btn-tool-v', { actif: outilActif === 'bordure' }]" @click="outilActif = 'bordure'" title="Tracer une bordure en bois (Diagonales possibles)">➖</button>
+            <button :class="['btn-tool-v', { actif: outilActif === 'arbre' }]" @click="outilActif = 'arbre'" title="Placer un arbre (Clic simple sur la carte)">🌳</button>
+            <button :class="['btn-tool-v', { actif: outilActif === 'deco' }]" @click="outilActif = 'deco'" title="Placer une décoration (Clic simple sur la carte)">🦆</button>
+            <div class="separateur-v"></div>
+            
+            <button class="btn-tool-v arrosoir-global-btn" @click="declencherArrosageGlobal" title="Arroser tout le potager">🚿</button>
+            <div class="separateur-v hide-on-mobile-small"></div>
 
-              <button class="btn-outil icon-only hide-on-mobile-small" @click="zoomer(0.1)" title="Zoomer">➕</button>
-              <span class="zoom-text hide-on-mobile-small">{{ Math.round(zoom * 100) }}%</span>
-              <button class="btn-outil icon-only hide-on-mobile-small" @click="zoomer(-0.1)" title="Dézoomer">➖</button>
-              <div class="separateur hide-on-mobile-small"></div>
-              <button class="btn-outil icon-only" @click="recentrerTerrain" title="Retourner au point central">⌖</button>
-              
-              <div class="separateur"></div>
-              <button :class="['btn-outil btn-saison', saisonActive]" @click="basculerSaison">
-                {{ saisonActive === 'ete' ? '☀️ Été' : '❄️ Hiver' }}
-              </button>
-            </div>
+            <button class="btn-tool-v hide-on-mobile-small" @click="zoomer(0.1)" title="Zoomer">➕</button>
+            <span class="zoom-text-v hide-on-mobile-small">{{ Math.round(zoom * 100) }}%</span>
+            <button class="btn-tool-v hide-on-mobile-small" @click="zoomer(-0.1)" title="Dézoomer">➖</button>
+            <button class="btn-tool-v hide-on-mobile-small" @click="recentrerTerrain" title="Retourner au centre">⌖</button>
+            <div class="separateur-v"></div>
+
+            <button :class="['btn-tool-v', 'btn-saison-v', saisonActive]" @click="basculerSaison" title="Bascule Été/Hiver">
+              {{ saisonActive === 'ete' ? '☀️' : '❄️' }}
+            </button>
           </div>
 
           <div ref="terrainRef" class="terrain-infini" :style="{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }">
             <div class="centre-absolu">+ Point Zéro</div>
             
-            <div v-for="p in parcelles" :key="p.id" :class="['parcelle', { 'en-mouvement': draggedParcelle && draggedParcelle.id === p.id, 'conflit-actif': aConflit(p) }]" :style="styleParcelle(p)" @mousedown.stop="commencerDragParcelle($event, p)" @touchstart.stop="commencerDragParcelle($event, p)">
+            <div v-for="p in parcelles" :key="p.id" 
+                 :class="['element-terrain', `type-${p.type || 'bac'}`, `taille-${p.taille || 'Moyen'}`, { 'en-mouvement': draggedParcelle && draggedParcelle.id === p.id, 'conflit-actif': aConflit(p) }]" 
+                 :style="styleTerrainElement(p)" 
+                 @mousedown.stop="commencerDragParcelle($event, p)" @touchstart.stop="commencerDragParcelle($event, p)">
               
-              <div v-if="p.arrosageEnCours" class="pluie-container"></div>
-
-              <div class="terre-interieure">
-                <div class="grille-plantes" :style="calculerGrillePlantes(p)">
-                  <div v-for="(plante, index) in obtenirPlantesUnitaires(p)" :key="index" class="plante-visuelle" :title="plante.nom">{{ plante.icone }}</div>
+              <template v-if="!p.type || p.type === 'bac'">
+                <div v-if="p.arrosageEnCours" class="pluie-container"></div>
+                <div class="terre-interieure">
+                  <div class="grille-plantes" :style="calculerGrillePlantes(p)">
+                    <div v-for="(plante, index) in obtenirPlantesUnitaires(p)" :key="index" class="plante-visuelle" :title="plante.nom">{{ plante.icone }}</div>
+                  </div>
                 </div>
-              </div>
-              
-              <span class="label-dim"><strong v-if="p.nom">{{ p.nom }} • </strong>{{ p.dimX }} x {{ p.dimY }} cm</span>
-              <div v-if="aConflit(p)" class="indicateur-conflit" title="Association défavorable dans ce bac !">⚠️</div>
-              
-              <div v-if="bacBesoinEau(p) && !p.arrosageEnCours" class="indicateur-soif" title="Besoin d'eau !">💧</div>
+                <span class="label-dim"><strong v-if="p.nom">{{ p.nom }} • </strong>{{ p.dimX }} x {{ p.dimY }} cm</span>
+                <div v-if="aConflit(p)" class="indicateur-conflit" title="Association défavorable dans ce bac !">⚠️</div>
+                <div v-if="bacBesoinEau(p) && !p.arrosageEnCours" class="indicateur-soif" title="Besoin d'eau !">💧</div>
+                
+                <div class="resize-handle" @mousedown.stop="commencerResize($event, p)" @touchstart.stop="commencerResize($event, p)"></div>
+              </template>
 
-              <button class="btn-action-parcelle btn-arroser" @click.stop="arroserBac(p)" @touchstart.stop="arroserBac(p)" title="J'ai arrosé !">💦</button>
-              <button class="btn-action-parcelle btn-planter" @click.stop="ouvrirModalPlantation(p)" @touchstart.stop="ouvrirModalPlantation(p)" title="Planter ici">🌱</button>
-              <button class="btn-action-parcelle btn-gerer" @click.stop="ouvrirModalGestionBac(p)" @touchstart.stop="ouvrirModalGestionBac(p)" title="Gérer ce bac">📋</button>
-              <button class="btn-action-parcelle btn-historique" @click.stop="ouvrirHistorique(p)" @touchstart.stop="ouvrirHistorique(p)" title="Voir l'historique">🕒</button>
-              <button class="btn-action-parcelle btn-supprimer" @click.stop="supprimerParcelle(p.id)" @touchstart.stop="supprimerParcelle(p.id)" title="Supprimer le bac">×</button>
+              <template v-else-if="p.type === 'deco'">
+                <span class="icone-deco">{{ p.icone }}</span>
+              </template>
               
-              <div class="resize-handle" @mousedown.stop="commencerResize($event, p)" @touchstart.stop="commencerResize($event, p)" title="Redimensionner"></div>
+              <template v-else-if="p.type === 'bordure'">
+                <div class="resize-handle" @mousedown.stop="commencerResize($event, p)" @touchstart.stop="commencerResize($event, p)"></div>
+              </template>
+
+              <div class="parcelle-actions-container">
+                <button v-if="!p.type || p.type === 'bac'" class="btn-action-parcelle btn-arroser" @click.stop="arroserBac(p)" title="J'ai arrosé !">💦</button>
+                <button v-if="!p.type || p.type === 'bac'" class="btn-action-parcelle btn-planter" @click.stop="ouvrirModalPlantation(p)" title="Planter ici">🌱</button>
+                <button v-if="!p.type || p.type === 'bac'" class="btn-action-parcelle btn-gerer" @click.stop="ouvrirModalGestionBac(p)" title="Gérer ce bac">📋</button>
+                <button v-if="!p.type || p.type === 'bac'" class="btn-action-parcelle btn-historique" @click.stop="ouvrirHistorique(p)" title="Voir l'historique">🕒</button>
+                <button class="btn-action-parcelle btn-supprimer" @click.stop="supprimerParcelle(p.id)" title="Supprimer">×</button>
+              </div>
             </div>
             
-            <div v-if="parcelleEnCours" class="parcelle en-cours-dessin" :style="styleParcelle(parcelleEnCours)">
-              <div class="terre-interieure"></div>
-              <span class="label-dim">{{ parcelleEnCours.dimX }} x {{ parcelleEnCours.dimY }} cm</span>
+            <div v-if="parcelleEnCours" :class="['element-terrain', 'en-cours-dessin', `type-${parcelleEnCours.type}`]" :style="styleTerrainElement(parcelleEnCours)">
+              <div v-if="!parcelleEnCours.type || parcelleEnCours.type === 'bac'" class="terre-interieure"></div>
+              <span class="label-dim" v-if="!parcelleEnCours.type || parcelleEnCours.type === 'bac'">{{ parcelleEnCours.dimX }} x {{ parcelleEnCours.dimY }} cm</span>
             </div>
           </div>
         </div>
@@ -142,12 +152,15 @@
       </div>
 
       <div v-if="vueActive === 'grainotheque'" class="vue-grainotheque vue-scrollable">
-        <header class="header-epure">
-          <h2>Inventaire des semences</h2>
-          <p class="sous-titre">Gérez vos variétés, leurs cycles et leurs besoins en sol.</p>
-          <div class="legende-possession mt-15">
-            <span class="info-bulle">💡 <b>Astuce :</b> Ajoutez n'importe quelle graine à l'encyclopédie et utilisez le bouton <b>"🛒 À acheter"</b> ou <b>"📦 En stock"</b>.</span>
+        <header class="header-epure flex-between block-mobile">
+          <div>
+            <h2>Inventaire des semences</h2>
+            <p class="sous-titre">Gérez vos variétés, leurs cycles et leurs besoins en sol.</p>
+            <div class="legende-possession mt-15">
+              <span class="info-bulle">💡 <b>Astuce :</b> Vous pouvez ajouter n'importe quelle graine à l'encyclopédie. Cliquez sur le bouton <b>"🛒 À acheter"</b> ou <b>"📦 En stock"</b> d'une carte pour indiquer si vous la possédez physiquement.</span>
+            </div>
           </div>
+          <button class="btn-submit full-width mt-mobile" style="align-self: flex-start;" @click="ouvrirModalGraine()">+ Nouvelle semence</button>
         </header>
         
         <div class="workspace-graines">
@@ -223,17 +236,15 @@
         </header>
 
         <div class="workspace-graines">
-          <div v-if="godetsAffichables.length === 0" class="etat-vide">
+          <div v-if="!godetsAffichables || godetsAffichables.length === 0" class="etat-vide">
             <div class="etat-vide-icone">🪴</div>
             <h3>Votre pouponnière est vide</h3>
-            <p>Ajoutez des semis à faire germer au chaud.</p>
           </div>
-          
           <div class="grid-graines" v-else>
             <div v-for="godet in godetsAffichables" :key="godet.id" class="carte-graine carte-godet">
               <div class="carte-actions">
                 <button class="btn-icon" @click="ouvrirModalAjoutGodet(godet)" title="Modifier">✎</button>
-                <button class="btn-icon rouge" @click="supprimerGodet(godet.id)" title="Supprimer (ou repiqué)">✔</button>
+                <button class="btn-icon rouge" @click="supprimerGodet(godet.id)" title="Supprimer">✔</button>
               </div>
               <div class="carte-contenu">
                 <div class="carte-top align-center">
@@ -281,14 +292,12 @@
                   <div class="assoc-header"><span class="assoc-icon">✨</span><strong>Associations Favorables</strong></div>
                   <div class="tags-container">
                     <span v-for="p in assoc.fav" :key="'f'+p" class="tag tag-fav">{{ p }}</span>
-                    <span v-if="assoc.fav.length === 0" class="tag tag-vide">Aucune connue</span>
                   </div>
                 </div>
                 <div class="assoc-bloc defav mt-15">
                   <div class="assoc-header"><span class="assoc-icon">⚠️</span><strong>Associations Défavorables</strong></div>
                   <div class="tags-container">
                     <span v-for="p in assoc.defav" :key="'d'+p" class="tag tag-defav">{{ p }}</span>
-                    <span v-if="assoc.defav.length === 0" class="tag tag-vide">Aucune connue</span>
                   </div>
                 </div>
               </div>
@@ -304,15 +313,14 @@
         <header class="header-epure flex-between block-mobile">
           <div>
             <h2>Centre de Notifications</h2>
-            <p class="sous-titre">Gérez les alertes de votre potager (Arrosage, Semis, Récoltes).</p>
+            <p class="sous-titre">Gérez les alertes de votre potager.</p>
           </div>
-          <button v-if="alertesArrosage.length > 0" class="btn-arroser-petit full-width mt-mobile" style="padding: 10px 20px; font-size: 1em;" @click="declencherArrosageGlobal()">💦 Tout arroser</button>
+          <button v-if="alertesArrosage.length > 0" class="btn-arroser-petit full-width mt-mobile" @click="declencherArrosageGlobal()">💦 Tout arroser</button>
         </header>
 
         <div v-if="totalAlertes === 0" class="etat-vide">
           <div class="etat-vide-icone">✨</div>
           <h3>Tout est à jour !</h3>
-          <p>Vos plantes sont hydratées et aucune tâche urgente au calendrier.</p>
         </div>
 
         <div class="alertes-grid" v-else>
@@ -331,7 +339,7 @@
           </div>
 
           <div class="alertes-container" v-if="alertesSaisonsFiltrees.length > 0">
-            <h3><span class="icone-h3">📅</span> Tâches du Calendrier (Ce mois & Prochain)</h3>
+            <h3><span class="icone-h3">📅</span> Tâches du Calendrier (Ce mois & Mois prochain)</h3>
             <div class="liste-alertes">
               <div v-for="(alerte, i) in alertesSaisonsFiltrees" :key="i" :class="['alerte-item', alerte.type]">
                 <div class="alerte-icone">{{ alerte.icone }}</div>
@@ -370,24 +378,16 @@
               </div>
             </div>
           </template>
-          
           <template v-else-if="meteoErreur">
             <div class="meteo-placeholder erreur" @click="changerVue('reglages')">
               <span class="placeholder-icon">⚠️</span>
-              <div class="placeholder-texte">
-                <strong>Ville introuvable</strong>
-                <p>Cliquez ici pour vérifier l'orthographe dans vos réglages.</p>
-              </div>
+              <div class="placeholder-texte"><strong>Ville introuvable</strong><p>Vérifiez l'orthographe.</p></div>
             </div>
           </template>
-          
           <template v-else>
             <div class="meteo-placeholder" @click="changerVue('reglages')">
               <span class="placeholder-icon">🌤️</span>
-              <div class="placeholder-texte">
-                <strong>Configurez votre météo</strong>
-                <p>Renseignez votre ville dans les réglages pour activer les prévisions.</p>
-              </div>
+              <div class="placeholder-texte"><strong>Configurez la météo</strong></div>
             </div>
           </template>
         </div>
@@ -395,7 +395,7 @@
         <div class="stats-dashboard mt-30 block-mobile">
           <div class="stat-box full-width"><span class="stat-valeur">{{ totalPlantsCultives }}</span><span class="stat-label">Plants en terre</span></div>
           <div class="stat-box full-width"><span class="stat-valeur">{{ totalGodetsCultives }}</span><span class="stat-label">Plants en godets</span></div>
-          <div class="stat-box full-width"><span class="stat-valeur">{{ bacsUtilises }} / {{ parcelles.length }}</span><span class="stat-label">Bacs utilisés</span></div>
+          <div class="stat-box full-width"><span class="stat-valeur">{{ bacsUtilises }} / {{ bacsTotal }}</span><span class="stat-label">Bacs potagers ({{ saisonActive }})</span></div>
         </div>
 
         <div class="workspace-graines">
@@ -415,35 +415,30 @@
       </div>
 
       <div v-if="vueActive === 'reglages'" class="vue-reglages vue-scrollable">
-        <header class="header-epure"><h2>Configuration du système</h2><p class="sous-titre">Connectez votre assistant IA et configurez vos services externes.</p></header>
+        <header class="header-epure"><h2>Configuration du système</h2></header>
 
         <div class="grid-reglages">
           <div class="carte-reglage carte-discord" style="grid-column: 1 / -1;">
             <div class="reglage-header"><div class="reglage-icone">💬</div><h3>Notifications Discord</h3></div>
             <div class="reglage-body">
-              <p class="reglage-desc">Saisissez l'URL d'un webhook Discord. Vous recevrez une alerte le matin à l'heure indiquée si vos bacs ont besoin d'eau.</p>
-              
               <div class="form-group">
                 <label>URL du Webhook Discord</label>
                 <div class="input-action flex-col-mobile">
                   <input type="url" v-model="reglages.webhookUrl" placeholder="https://discord.com/api/webhooks/..." />
-                  <button class="btn-submit full-width-mobile" @click="testerWebhookDiscord" :disabled="!reglages.webhookUrl">Tester via serveur</button>
+                  <button class="btn-submit full-width-mobile" @click="testerWebhookDiscord" :disabled="!reglages.webhookUrl">Tester</button>
                 </div>
               </div>
-
-              <div class="form-group mt-15">
+              <div class="form-group mt-15" style="max-width: 200px;">
                 <label>Heure d'envoi automatique (HH:MM)</label>
-                <input type="time" v-model="reglages.webhookHeure" style="max-width: 200px;" class="full-width-mobile" />
+                <input type="time" v-model="reglages.webhookHeure" class="full-width-mobile" />
               </div>
-
               <div class="form-group mt-15">
                 <label class="toggle-container">
                   <input type="checkbox" v-model="reglages.webhookArrosage">
                   <span class="toggle-slider"></span>
-                  <span class="toggle-label">Alerte : "Jour d'arrosage pour..." 💦</span>
+                  <span class="toggle-label">Alerte : "Jour d'arrosage pour : XXX" 💦</span>
                 </label>
               </div>
-
               <div class="form-group mt-15">
                 <label class="toggle-container">
                   <input type="checkbox" v-model="reglages.webhookPluie">
@@ -454,55 +449,55 @@
             </div>
           </div>
 
-          <div class="carte-reglage carte-ia">
-            <div class="reglage-header"><div class="reglage-icone">✨</div><h3>Moteur IA (Google Gemini)</h3></div>
-            <div class="reglage-body">
-              <p class="reglage-desc">Saisissez votre clé API pour récupérer les modèles disponibles.</p>
-              <form @submit.prevent="fetchModeles(false)">
-                <div class="form-group">
-                  <label>Clé d'API Google Gemini</label>
-                  <div class="input-action flex-col-mobile">
-                    <input type="password" autocomplete="off" v-model="reglages.geminiKey" placeholder="AIzaSy..." />
-                    <button class="btn-submit full-width-mobile" type="submit" :disabled="isConnecting">{{ isConnecting ? 'Connexion...' : 'Connecter' }}</button>
-                  </div>
-                </div>
-              </form>
-              <div class="form-group slide-in" v-if="listeModeles.length > 0"><label>Modèle IA disponible</label><select v-model="reglages.geminiModel"><option v-for="m in listeModeles" :key="m.id" :value="m.id">{{ m.label }}</option></select></div>
-              <div class="connexion-status" :class="reglages.geminiConnected ? 'status-ok' : 'status-wait'"><div class="pastille"></div><span>{{ reglages.geminiConnected ? 'Connecté et prêt !' : 'En attente de clé API' }}</span></div>
-            </div>
-          </div>
-
           <div class="carte-reglage carte-localisation">
             <div class="reglage-header"><div class="reglage-icone">🌤️</div><h3>Localisation & Météo</h3></div>
             <div class="reglage-body">
-              <p class="reglage-desc">S'il pleut chez vous, <strong>le potager sera arrosé automatiquement</strong> !</p>
               <div class="form-row block-mobile">
-                <div class="form-group flex-grow full-width"><label>Ville</label><input type="text" v-model="reglages.ville" placeholder="Ex: Paris, Lyon..." @blur="chargerMeteo" @keyup.enter="chargerMeteo" /></div>
-                <div class="form-group flex-grow full-width"><label>Pays (Optionnel)</label><input type="text" v-model="reglages.pays" placeholder="Ex: France" @blur="chargerMeteo" @keyup.enter="chargerMeteo" /></div>
+                <div class="form-group flex-grow full-width"><label>Ville (ex: Paris)</label><input type="text" v-model="reglages.ville" placeholder="Nom de la ville" @blur="chargerMeteo" @keyup.enter="chargerMeteo" /></div>
               </div>
-              <div v-if="meteoErreur" class="help-text mt-5">❌ Impossible de trouver cette ville. Veuillez vérifier l'orthographe.</div>
+              <div v-if="meteoErreur" class="help-text mt-5">❌ Impossible de trouver cette ville.</div>
             </div>
           </div>
         </div>
       </div>
     </main>
 
-    <div class="chatbot-wrapper hide-on-mobile">
-      <div v-if="chatOuvert" class="chatbot-window">
-        <div class="chatbot-header">
-          <div class="chatbot-title"><span class="sparkle">✨</span> Gemini Assistant</div>
-          <button class="btn-fermer-chat" @click="chatOuvert = false">×</button>
+    <div v-if="afficherModalArbre" class="modal-overlay" @click.self="afficherModalArbre = false">
+      <div class="modal">
+        <h3>Placer un objet 🏡</h3>
+        <form @submit.prevent="validerAjoutArbre">
+          <div class="form-group">
+            <label>Taille de l'arbre sur la carte</label>
+            <select v-model="nouvelArbre.taille" required>
+              <option value="Petit">Petit (Arbuste)</option>
+              <option value="Moyen">Moyen (Fruitier classique)</option>
+              <option value="Grand">Grand (Chêne, Noyer...)</option>
+            </select>
+          </div>
+          <div class="actions block-mobile mt-30">
+            <button type="button" class="btn-cancel full-width" @click="afficherModalArbre = false">Annuler</button>
+            <button type="submit" class="btn-submit full-width">Placer sur la carte</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div v-if="afficherModalDeco" class="modal-overlay" @click.self="afficherModalDeco = false">
+      <div class="modal">
+        <h3>Placer une décoration ✨</h3>
+        <p class="sous-titre mb-15">Choisissez un objet ou un animal pour décorer votre plan.</p>
+        
+        <div class="grille-emojis-deco">
+          <span v-for="emoji in listeDecos" :key="emoji" 
+                :class="['emoji-deco-item', { actif: nouvelleDeco.icone === emoji }]" 
+                @click="nouvelleDeco.icone = emoji">{{ emoji }}</span>
         </div>
-        <div class="chatbot-messages" ref="chatScroll">
-          <div v-for="(msg, index) in chatMessages" :key="index" :class="['chat-bulle', msg.role === 'user' ? 'bulle-user' : 'bulle-ia']">{{ msg.text }}</div>
-          <div v-if="isTyping" class="chat-bulle bulle-ia typing-indicator"><span>.</span><span>.</span><span>.</span></div>
-        </div>
-        <div class="chatbot-input-area">
-          <input type="text" v-model="chatInput" @keyup.enter="envoyerMessageIA" placeholder="Ex: Ajoute des tomates..." :disabled="!reglages.geminiConnected" />
-          <button class="btn-send" @click="envoyerMessageIA" :disabled="!reglages.geminiConnected || isTyping">➤</button>
+
+        <div class="actions block-mobile mt-30">
+          <button type="button" class="btn-cancel full-width" @click="afficherModalDeco = false">Annuler</button>
+          <button class="btn-submit full-width" @click="validerAjoutDeco" :disabled="!nouvelleDeco.icone">Poser ici</button>
         </div>
       </div>
-      <button class="chatbot-toggle-btn" @click="chatOuvert = !chatOuvert" :class="{ 'pulse': reglages.geminiConnected && !chatOuvert }">💬</button>
     </div>
 
     <div v-if="afficherModal" class="modal-overlay" @click.self="afficherModal = false">
@@ -514,16 +509,11 @@
           <div class="form-row block-mobile">
             <div class="form-group third full-width"><label>Catégorie botanique *</label><select v-model="nouvelleGraine.type" required><option v-for="t in typesPlantes" :key="t" :value="t">{{ t }}</option></select></div>
             <div class="form-group third full-width"><label>Type de sol favori</label><select v-model="nouvelleGraine.sol"><option value="">-- Non défini --</option><option v-for="s in typesSols" :key="s" :value="s">{{ s }}</option></select></div>
-            <div class="form-group third full-width">
-              <label>Besoin en eau *</label>
-              <select v-model="nouvelleGraine.arrosage" required>
-                <option v-for="freq in optionsArrosage" :key="freq.val" :value="freq.val">{{ freq.label }}</option>
-              </select>
-            </div>
+            <div class="form-group third full-width"><label>Besoin en eau *</label><select v-model="nouvelleGraine.arrosage" required><option v-for="freq in optionsArrosage" :key="freq.val" :value="freq.val">{{ freq.label }}</option></select></div>
           </div>
-
-          <div class="form-row">
-            <div class="form-group flex-grow">
+          
+          <div class="form-row block-mobile">
+            <div class="form-group flex-grow full-width">
               <label class="toggle-container mt-15">
                 <input type="checkbox" v-model="nouvelleGraine.en_possession">
                 <span class="toggle-slider"></span>
@@ -558,11 +548,11 @@
               <option v-for="g in grainotheque" :key="'god'+g.id" :value="g.id">{{ g.icone }} {{ g.nom }}</option>
             </select>
           </div>
-          <div class="form-group mt-15"><label>Quantité *</label><input type="number" v-model="nouveauGodet.quantite" min="1" max="500" required /></div>
-          <div class="form-group mt-15"><label>Emplacement (Optionnel)</label><input type="text" v-model="nouveauGodet.emplacement" placeholder="Ex: Serre..." /></div>
+          <div class="form-group mt-15"><label>Quantité de godets *</label><input type="number" v-model="nouveauGodet.quantite" min="1" max="500" required /></div>
+          <div class="form-group mt-15"><label>Emplacement (Optionnel)</label><input type="text" v-model="nouveauGodet.emplacement" placeholder="Ex: Serre, Bord de fenêtre..." /></div>
           <div class="actions block-mobile">
             <button type="button" class="btn-cancel full-width" @click="afficherModalGodet = false">Annuler</button>
-            <button type="submit" class="btn-submit full-width" :disabled="grainotheque.length === 0">{{ modeEditionGodet ? 'Mettre à jour' : 'Semer' }}</button>
+            <button type="submit" class="btn-submit full-width" :disabled="!grainotheque || grainotheque.length === 0">{{ modeEditionGodet ? 'Mettre à jour' : 'Semer' }}</button>
           </div>
         </form>
       </div>
@@ -570,7 +560,7 @@
 
     <div v-if="afficherModalPlantation" class="modal-overlay" @click.self="fermerModalPlantation">
       <div class="modal">
-        <h3>Planter dans ce bac ({{ saisonActive === 'ete' ? 'Été' : 'Hiver' }})</h3>
+        <h3>Planter dans ce bac</h3>
         <form @submit.prevent="validerPlantation">
           <div class="form-group">
             <label>Variété à repiquer/planter</label>
@@ -581,13 +571,11 @@
           </div>
 
           <div v-if="nouvellePlantation.graine && parcelleSelectionnee && obtenirPlantesUniquesNoms(parcelleSelectionnee).length > 0">
-            <div v-if="analyseAssociation.fav.length > 0" class="alerte-assoc box-fav">
-              <span class="assoc-icon">✨</span> 
-              <div><strong>Association favorable détectée !</strong><br>Développement stimulé avec : {{ analyseAssociation.fav.join(', ') }}</div>
+            <div v-if="analyseAssociation?.fav?.length > 0" class="alerte-assoc box-fav">
+              <span class="assoc-icon">✨</span> <div><strong>Association favorable détectée !</strong><br>Cette plante stimulera le développement avec : {{ analyseAssociation.fav.join(', ') }}</div>
             </div>
-            <div v-if="analyseAssociation.defav.length > 0" class="alerte-assoc box-defav">
-              <span class="assoc-icon">⚠️</span> 
-              <div><strong>Attention, association déconseillée.</strong><br>Évitez la proximité avec : {{ analyseAssociation.defav.join(', ') }}</div>
+            <div v-if="analyseAssociation?.defav?.length > 0" class="alerte-assoc box-defav">
+              <span class="assoc-icon">⚠️</span> <div><strong>Attention, association déconseillée.</strong><br>Évitez la proximité avec : {{ analyseAssociation.defav.join(', ') }}</div>
             </div>
           </div>
 
@@ -599,43 +587,27 @@
 
     <div v-if="afficherModalGestionBac" class="modal-overlay" @click.self="afficherModalGestionBac = false">
       <div class="modal modal-large">
-        <h3>Gérer ce bac ({{ saisonActive === 'ete' ? '☀️ Été' : '❄️ Hiver' }})</h3>
-        
-        <div class="form-group mb-15">
-          <label>Nom de la parcelle</label>
-          <input type="text" v-model="parcelleEnGestion.nom" @change="syncParcellesForcer" placeholder="Ex: Bac des aromates..." />
-        </div>
-
-        <p class="modal-desc">Modifiez les quantités, dates de plantation, ou retirez des variétés de cette parcelle.</p>
-        
-        <div v-if="plantesEnGestion.length === 0" class="etat-vide-petit">Ce bac est vide pour l'instant.</div>
-        
+        <h3>Gérer ce bac</h3>
+        <div class="form-group mb-15"><label>Nom de la parcelle</label><input type="text" v-model="parcelleEnGestion.nom" @change="syncParcellesForcer" placeholder="Ex: Bac des aromates..." /></div>
+        <p class="modal-desc">Modifiez les quantités, ou retirez des variétés.</p>
+        <div v-if="!plantesEnGestion || plantesEnGestion.length === 0" class="etat-vide-petit">Ce bac est vide.</div>
         <div class="liste-gestion-plantes" v-else>
           <div v-for="(plante, i) in plantesEnGestion" :key="i" class="item-gestion block-mobile">
-            <div class="item-info">
-              <span class="item-icone">{{ plante.icone }}</span>
-              <div class="item-details-flex">
-                <span class="item-nom">{{ plante.nom }}</span>
-                <input type="month" v-model="plante.date_plantation" class="input-date-petit" title="Mois de plantation" @change="syncParcellesForcer" />
-              </div>
-            </div>
+            <div class="item-info"><span class="item-icone">{{ plante.icone }}</span><span class="item-nom">{{ plante.nom }}</span></div>
             <div class="item-actions mt-mobile">
-              <input type="number" v-model="plante.quantite" min="1" class="input-qte-petit" title="Quantité" @change="syncParcellesForcer" />
-              <button class="btn-icon rouge" @click="retirerPlanteDuBac(i)" title="Retirer">×</button>
+              <input type="number" v-model="plante.quantite" min="1" class="input-qte-petit" @change="syncParcellesForcer" />
+              <button class="btn-icon rouge" @click="retirerPlanteDuBac(i)">×</button>
             </div>
           </div>
         </div>
-
-        <div class="actions mt-30 block-mobile">
-          <button type="button" class="btn-submit full-width" @click="afficherModalGestionBac = false">Terminer</button>
-        </div>
+        <div class="actions mt-30 block-mobile"><button type="button" class="btn-submit full-width" @click="afficherModalGestionBac = false">Terminer</button></div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import logoImg from './assets/logo.png'
 
 const vueActive = ref('potager')
@@ -645,33 +617,39 @@ const parcelles = ref([])
 const grainotheque = ref([])
 const godets = ref([]) 
 
-const changerVue = (vue) => {
+function changerVue(vue) {
   vueActive.value = vue;
   menuMobileOuvert.value = false;
 }
 
 const saisonActive = ref('ete') 
-const basculerSaison = () => {
-  saisonActive.value = saisonActive.value === 'ete' ? 'hiver' : 'ete';
-}
+const basculerSaison = () => { saisonActive.value = saisonActive.value === 'ete' ? 'hiver' : 'ete'; }
 
 const typesPlantes = ['Légume-fruit', 'Légume-racine', 'Légume-feuille', 'Fleur compagne', 'Bulbe', 'Aromatique', 'Céréale']
 const typesSols = ['Argileux (Lourd)', 'Sableux (Léger)', 'Limoneux (Riche)', 'Humifère (Terreau)', 'Calcaire', 'Tout type de sol']
 const mois = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 const listeIcones = ['🌱','🌿','🍅','🥕','🥔','🥬','🧅','🧄','🥦','🥒','🍆','🌶️','🌽','🍓','🍈','🍉','🎃','🌼','🌻','🪻']
+const listeDecos = ['🪑', '🪣', '🦆', '🦔', '🐝', '🐌', '🦉', '🦋', '🐈', '🐸', '🪵', '⛲', '🪨', '🍄', '🛒', '🚲']
+
 const centreTerrain = 5000;
 const backendUrl = ""; 
 
 onMounted(() => {
   let link = document.querySelector("link[rel~='icon']");
   if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.getElementsByTagName('head')[0].appendChild(link); }
-  link.href = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍑</text></svg>";
+  link.href = "data:image/svg+xml," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍑</text></svg>");
 });
 
 const optionsArrosage = [{ label: 'Tous les jours (1j)', val: 1 }, { label: 'Tous les 2 jours (2j)', val: 2 }, { label: 'Tous les 3 jours (3j)', val: 3 }, { label: '1 fois par semaine (7j)', val: 7 }, { label: '1 fois toutes les 2 semaines (14j)', val: 14 }];
 const getArrosageLabel = (val) => { const opt = optionsArrosage.find(o => o.val === val); return opt ? opt.label : val + 'j'; }
 const getCurrentYearMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
-const formatMoisAnnee = (yyyymm) => { if (!yyyymm) return 'Date inconnue'; const [y, m] = yyyymm.split('-'); return `${mois[parseInt(m) - 1]} ${y}`; };
+
+const formatMoisAnnee = (yyyymm) => { 
+  if (!yyyymm) return 'Date inconnue'; 
+  const parts = yyyymm.split('-'); 
+  if(parts.length < 2) return 'Date inconnue';
+  return `${mois[parseInt(parts[1], 10) - 1]} ${parts[0]}`; 
+};
 
 const dbAssociations = [
   { plante: "Ail", fav: ["betterave", "carotte", "chou", "fraise", "laitue", "tomate"], defav: ["asperge", "haricot", "persil", "pois", "poireau", "pomme de terre"] },
@@ -711,14 +689,66 @@ const dbAssociations = [
 ];
 
 const rechercheConseil = ref('');
-const conseilsFiltres = computed(() => { if(!rechercheConseil.value) return dbAssociations; return dbAssociations.filter(a => a.plante.toLowerCase().includes(rechercheConseil.value.toLowerCase())); });
-const normaliserTexte = (str) => { return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim(); };
-const verifierLien = (planteA, planteB) => { const normA = normaliserTexte(planteA); const normB = normaliserTexte(planteB); const objA = dbAssociations.find(a => normaliserTexte(a.plante).includes(normA) || normA.includes(normaliserTexte(a.plante))); const objB = dbAssociations.find(b => normaliserTexte(b.plante).includes(normB) || normB.includes(normaliserTexte(b.plante))); let isFav = false; let isDefav = false; if (objA) { if (objA.fav.some(f => normB.includes(normaliserTexte(f)) || normaliserTexte(f).includes(normB))) isFav = true; if (objA.defav.some(f => normB.includes(normaliserTexte(f)) || normaliserTexte(f).includes(normB))) isDefav = true; } if (objB) { if (objB.fav.some(f => normA.includes(normaliserTexte(f)) || normaliserTexte(f).includes(normA))) isFav = true; if (objB.defav.some(f => normA.includes(normaliserTexte(f)) || normaliserTexte(f).includes(normA))) isDefav = true; } return { isFav, isDefav }; };
-const aConflit = (parcelle) => { const plantations = saisonActive.value === 'ete' ? (parcelle.plantations_ete || []) : (parcelle.plantations_hiver || []); const noms = [...new Set(plantations.map(p => p.nom))]; for (let i = 0; i < noms.length; i++) { for (let j = i + 1; j < noms.length; j++) { if (verifierLien(noms[i], noms[j]).isDefav) return true; } } return false; };
-const obtenirPlantesUniquesNoms = (parcelle) => { if (!parcelle) return []; const plantations = saisonActive.value === 'ete' ? (parcelle.plantations_ete || []) : (parcelle.plantations_hiver || []); return [...new Set(plantations.map(p => p.nom))]; };
+const conseilsFiltres = computed(() => { if(!rechercheConseil.value) return dbAssociations; return dbAssociations.filter(a => (a.plante || '').toLowerCase().includes((rechercheConseil.value || '').toLowerCase())); });
+const normaliserTexte = (str) => { return (str || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim(); };
+
+const verifierLien = (planteA, planteB) => { 
+  const normA = normaliserTexte(planteA); const normB = normaliserTexte(planteB); 
+  const objA = dbAssociations.find(a => normaliserTexte(a.plante).includes(normA) || normA.includes(normaliserTexte(a.plante))); 
+  const objB = dbAssociations.find(b => normaliserTexte(b.plante).includes(normB) || normB.includes(normaliserTexte(b.plante))); 
+  let isFav = false; let isDefav = false; 
+  if (objA?.fav) { 
+    if (objA.fav.some(f => normB.includes(normaliserTexte(f)) || normaliserTexte(f).includes(normB))) isFav = true; 
+    if (objA.defav?.some(f => normB.includes(normaliserTexte(f)) || normaliserTexte(f).includes(normB))) isDefav = true; 
+  } 
+  if (objB?.fav) { 
+    if (objB.fav.some(f => normA.includes(normaliserTexte(f)) || normaliserTexte(f).includes(normA))) isFav = true; 
+    if (objB.defav?.some(f => normA.includes(normaliserTexte(f)) || normaliserTexte(f).includes(normA))) isDefav = true; 
+  } 
+  return { isFav, isDefav }; 
+};
+
+const aConflit = (parcelle) => { 
+  if (!parcelle || parcelle.type !== 'bac') return false; 
+  const plantations = saisonActive.value === 'ete' ? (parcelle.plantations_ete || []) : (parcelle.plantations_hiver || []); 
+  const noms = [...new Set(plantations.map(p => p.nom))]; 
+  for (let i = 0; i < noms.length; i++) { 
+    for (let j = i + 1; j < noms.length; j++) { 
+      if (verifierLien(noms[i], noms[j]).isDefav) return true; 
+    } 
+  } 
+  return false; 
+};
+
+const obtenirPlantesUniquesNoms = (parcelle) => { 
+  if (!parcelle || parcelle.type !== 'bac') return []; 
+  const plantations = saisonActive.value === 'ete' ? (parcelle.plantations_ete || []) : (parcelle.plantations_hiver || []); 
+  return [...new Set(plantations.map(p => p.nom))]; 
+};
+
+const analyseAssociation = computed(() => { 
+  let favs = []; let defavs = []; 
+  if (!parcelleSelectionnee.value || !nouvellePlantation.value.graine) return { fav: [], defav: [] }; 
+  const cibleNom = nouvellePlantation.value.graine.nom; 
+  const existantes = obtenirPlantesUniquesNoms(parcelleSelectionnee.value); 
+  existantes.forEach(nom => { 
+    const res = verifierLien(cibleNom, nom); 
+    if (res?.isFav) favs.push(nom); 
+    if (res?.isDefav) defavs.push(nom); 
+  }); 
+  return { fav: [...new Set(favs)], defav: [...new Set(defavs)] }; 
+});
 
 const rechercheGraine = ref(''); const filtreTypeGraine = ref(''); const filtrePossession = ref(false); 
-const grainesFiltrees = computed(() => { if (!grainotheque.value) return []; return grainotheque.value.filter(g => { const matchNom = g.nom.toLowerCase().includes(rechercheGraine.value.toLowerCase()); const matchType = filtreTypeGraine.value === '' || g.type === filtreTypeGraine.value; const matchPossession = !filtrePossession.value || g.en_possession; return matchNom && matchType && matchPossession; }); });
+const grainesFiltrees = computed(() => { 
+  if (!grainotheque.value) return []; 
+  return grainotheque.value.filter(g => { 
+    const matchNom = (g.nom || '').toLowerCase().includes((rechercheGraine.value || '').toLowerCase()); 
+    const matchType = filtreTypeGraine.value === '' || g.type === filtreTypeGraine.value; 
+    const matchPossession = !filtrePossession.value || g.en_possession; 
+    return matchNom && matchType && matchPossession; 
+  }); 
+});
 
 const afficherModalGodet = ref(false); const modeEditionGodet = ref(false); const nouveauGodet = ref({ id_graine: '', quantite: 1, emplacement: '' });
 const ouvrirModalAjoutGodet = (g = null) => { if (g) { modeEditionGodet.value = true; nouveauGodet.value = { ...g }; } else { modeEditionGodet.value = false; nouveauGodet.value = { id_graine: '', quantite: 1, emplacement: '' }; } afficherModalGodet.value = true; };
@@ -738,49 +768,44 @@ watch(grainotheque, (newVal) => { syncGraines(newVal); }, { deep: true });
 watch(parcelles, (newVal) => { syncParcelles(newVal); }, { deep: true });
 watch(godets, (newVal) => { syncGodets(newVal); }, { deep: true });
 
-const reglages = ref({ geminiKey: '', geminiModel: '', geminiConnected: false, webhookUrl: '', webhookArrosage: true, webhookPluie: true, webhookHeure: '10:00', ville: '', pays: '' });
-const syncReglagesServeur = debounce(async (data) => { localStorage.setItem('mySecretGarden_reglages', JSON.stringify(data)); try { await fetch(`${backendUrl}/api/reglages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); } catch(e){} }, 1000);
+const reglages = ref({ webhookUrl: '', webhookArrosage: true, webhookPluie: true, webhookHeure: '10:00', ville: '' });
+const syncReglagesServeur = debounce(async (data) => { try { await fetch(`${backendUrl}/api/reglages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); } catch(e){} }, 1000);
 watch(reglages, (newVal) => { syncReglagesServeur(newVal); }, { deep: true });
 
-const isConnecting = ref(false); const listeModeles = ref([]);
-
 onMounted(async () => {
-  try { const resGraines = await fetch(`${backendUrl}/api/graines`); if (resGraines.ok) grainotheque.value = await resGraines.json(); } catch(e) { const saved = localStorage.getItem('mySecretGarden_graines'); if(saved) grainotheque.value = JSON.parse(saved); }
+  try { const resGraines = await fetch(`${backendUrl}/api/graines`); if (resGraines.ok) grainotheque.value = await resGraines.json(); } catch(e) { const saved = localStorage.getItem('mySecretGarden_graines'); if(saved) grainotheque.value = JSON.parse(saved) || []; }
   try { 
     const resParcelles = await fetch(`${backendUrl}/api/parcelles`); 
     if (resParcelles.ok) {
       let dataParcelles = await resParcelles.json();
-      dataParcelles.forEach(p => { if (!p.plantations_ete) p.plantations_ete = []; if (!p.plantations_hiver) p.plantations_hiver = []; if (!p.nom) p.nom = ''; if (!p.dernier_arrosage) p.dernier_arrosage = Date.now(); p.arrosageEnCours = false; delete p.plantations; });
+      dataParcelles.forEach(p => { 
+        if (!p.type) p.type = 'bac';
+        if (p.type === 'bac') {
+            if (!p.plantations_ete) p.plantations_ete = p.plantations || []; 
+            if (!p.plantations_hiver) p.plantations_hiver = []; 
+            if (!p.dernier_arrosage) p.dernier_arrosage = Date.now(); 
+        }
+        if (!p.nom) p.nom = ''; 
+        p.arrosageEnCours = false; 
+        delete p.plantations; 
+      });
       parcelles.value = dataParcelles;
     }
-  } catch(e) { const saved = localStorage.getItem('mySecretGarden_parcelles'); if(saved) parcelles.value = JSON.parse(saved); }
-  try { const resGodets = await fetch(`${backendUrl}/api/godets`); if (resGodets.ok) godets.value = await resGodets.json(); } catch(e) { const saved = localStorage.getItem('mySecretGarden_godets'); if(saved) godets.value = JSON.parse(saved); }
+  } catch(e) { const saved = localStorage.getItem('mySecretGarden_parcelles'); if(saved) parcelles.value = JSON.parse(saved) || []; }
   
+  try { const resGodets = await fetch(`${backendUrl}/api/godets`); if (resGodets.ok) godets.value = await resGodets.json(); } catch(e) { const saved = localStorage.getItem('mySecretGarden_godets'); if(saved) godets.value = JSON.parse(saved) || []; }
   try { const resReg = await fetch(`${backendUrl}/api/reglages`); if (resReg.ok) { const dataReg = await resReg.json(); reglages.value = { ...reglages.value, ...dataReg }; } } catch(e) { const saved = localStorage.getItem('mySecretGarden_reglages'); if(saved) reglages.value = { ...reglages.value, ...JSON.parse(saved) }; }
   
-  if (reglages.value.geminiKey && reglages.value.geminiKey.length > 10) await fetchModeles(true);
   if (reglages.value.ville) chargerMeteo();
 });
 
 const meteoInfo = ref(null); const meteoErreur = ref(false);
-const chargerMeteo = async () => {
-  if (!reglages.value.ville) { meteoErreur.value = false; meteoInfo.value = null; return; }
-  try {
-    const searchString = encodeURIComponent(`${reglages.value.ville} ${reglages.value.pays}`.trim());
-    const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${searchString}&count=1&language=fr`); 
-    const geoData = await geoRes.json();
-    if (!geoData.results || geoData.results.length === 0) { meteoErreur.value = true; meteoInfo.value = null; return; }
-    const { latitude, longitude, name } = geoData.results[0];
-    const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum&current_weather=true&timezone=auto`);
-    const wData = await wRes.json();
-    meteoInfo.value = wData; meteoInfo.value.cityName = name; meteoErreur.value = false;
-  } catch (e) { meteoErreur.value = true; meteoInfo.value = null; }
-};
+const chargerMeteo = async () => { if (!reglages.value.ville) { meteoErreur.value = false; meteoInfo.value = null; return; } try { const searchString = encodeURIComponent(reglages.value.ville.trim()); const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${searchString}&count=1&language=fr`); const geoData = await geoRes.json(); if (!geoData.results || geoData.results.length === 0) { meteoErreur.value = true; meteoInfo.value = null; return; } const { latitude, longitude, name } = geoData.results[0]; const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum&current_weather=true&timezone=auto`); const wData = await wRes.json(); meteoInfo.value = wData; meteoInfo.value.cityName = name; meteoErreur.value = false; } catch (e) { meteoErreur.value = true; meteoInfo.value = null; } };
 const getWeatherEmoji = (code) => { if(code === 0) return '☀️'; if(code > 0 && code < 4) return '⛅'; if(code > 44 && code < 49) return '🌫️'; if(code > 50 && code < 68) return '🌧️'; if(code > 70 && code < 80) return '❄️'; if(code > 94) return '⛈️'; return '🌤️'; };
 const formatJour = (dateStr) => { return new Date(dateStr).toLocaleDateString('fr-FR', { weekday: 'short' }); };
 
 const bacBesoinEau = (bac) => {
-  if (!bac) return false;
+  if (!bac || bac.type !== 'bac') return false;
   const saison = saisonActive.value === 'ete' ? 'plantations_ete' : 'plantations_hiver';
   if (!bac[saison] || bac[saison].length === 0) return false;
   let minFreq = 999;
@@ -790,14 +815,7 @@ const bacBesoinEau = (bac) => {
 };
 const arroserBac = (bac) => { bac.arrosageEnCours = true; bac.dernier_arrosage = Date.now(); setTimeout(() => { bac.arrosageEnCours = false; syncParcellesForcer(); }, 2000); };
 const pluieGlobaleActive = ref(false);
-const arroserTout = () => {
-  pluieGlobaleActive.value = true;
-  (parcelles.value || []).forEach(p => { 
-    if (bacBesoinEau(p)) { p.arrosageEnCours = true; p.dernier_arrosage = Date.now(); }
-  });
-  setTimeout(() => { pluieGlobaleActive.value = false; (parcelles.value || []).forEach(p => p.arrosageEnCours = false); syncParcellesForcer(); }, 2500);
-};
-const declencherArrosageGlobal = () => { arroserTout(); };
+const declencherArrosageGlobal = () => { pluieGlobaleActive.value = true; (parcelles.value || []).forEach(p => { if (p.type === 'bac' && bacBesoinEau(p)) { p.arrosageEnCours = true; p.dernier_arrosage = Date.now(); } }); setTimeout(() => { pluieGlobaleActive.value = false; (parcelles.value || []).forEach(p => p.arrosageEnCours = false); syncParcellesForcer(); }, 2500); };
 
 const alertesArrosage = computed(() => {
   if (!parcelles.value) return [];
@@ -807,54 +825,274 @@ const alertesArrosage = computed(() => {
     return { id: p.id, bac: p, nom: p.nom, plantes: plantesDuBac, joursDepuis: Math.floor((Date.now() - (p.dernier_arrosage || 0)) / (1000 * 3600 * 24)) }; 
   }); 
 });
-
 const alertesSaisonsFiltrees = computed(() => {
-  if (!grainotheque.value) return [];
   const currentMonthIdx = new Date().getMonth();
-  const getMoisDistance = (moisNom) => { if(!moisNom) return 99; const idx = mois.indexOf(moisNom); if(idx === -1) return 99; return (idx - currentMonthIdx + 12) % 12; };
+  const getMoisDistance = (moisNom) => { 
+    if(!moisNom) return 99; 
+    const idx = mois.indexOf(moisNom); 
+    if(idx === -1) return 99; 
+    return (idx - currentMonthIdx + 12) % 12; 
+  };
   let alertes = [];
   grainotheque.value.forEach(g => {
-    if(g.godet_debut) { const dist = getMoisDistance(g.godet_debut); if(dist >= 0 && dist <= 1) alertes.push({ type: 'godet', plante: g.nom, icone: g.icone, dist: dist, mois: g.godet_debut }); }
-    if(g.plantation_debut) { const dist = getMoisDistance(g.plantation_debut); if(dist >= 0 && dist <= 1) alertes.push({ type: 'semis', plante: g.nom, icone: g.icone, dist: dist, mois: g.plantation_debut }); }
+    if(g.godet_debut) { 
+      const dist = getMoisDistance(g.godet_debut); 
+      if(dist >= 0 && dist <= 1) alertes.push({ type: 'godet', plante: g.nom, icone: g.icone, dist: dist, mois: g.godet_debut }); 
+    }
+    if(g.plantation_debut) { 
+      const dist = getMoisDistance(g.plantation_debut); 
+      if(dist >= 0 && dist <= 1) alertes.push({ type: 'semis', plante: g.nom, icone: g.icone, dist: dist, mois: g.plantation_debut }); 
+    }
   });
   return alertes.sort((a,b) => a.dist - b.dist);
 });
-const totalAlertes = computed(() => { return (alertesArrosage.value ? alertesArrosage.value.length : 0) + (alertesSaisonsFiltrees.value ? alertesSaisonsFiltrees.value.length : 0); });
+const totalAlertes = computed(() => {
+  return alertesArrosage.value.length + alertesSaisonsFiltrees.value.length;
+});
 
-const testerWebhookDiscord = async () => { try { await fetch(`${backendUrl}/api/reglages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(reglages.value) }); const res = await fetch(`${backendUrl}/api/test-webhook`, { method: 'POST' }); if(res.ok) alert("Le serveur a envoyé le webhook de test avec succès !"); else alert("Erreur du serveur lors du test."); } catch(e) { alert("Impossible de contacter le serveur Python."); } };
+const testerWebhookDiscord = async () => {
+  if (!reglages.value.webhookUrl) return;
+  try {
+    await fetch(`${backendUrl}/api/reglages`, { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' }, 
+      body: JSON.stringify(reglages.value) 
+    });
+    const res = await fetch(`${backendUrl}/api/test-webhook`, { method: 'POST' });
+    if(res.ok) alert('Webhook de test envoyé avec succès ! Vérifiez votre serveur Discord.');
+    else alert("Erreur du serveur lors du test.");
+  } catch (e) {
+    alert('Erreur lors de l\'envoi du webhook de test. Vérifiez votre URL ou votre bloqueur de publicité.');
+  }
+};
 
-const fetchModeles = async (isAutoConnect = false) => { if (reglages.value.geminiKey.length < 10) { if (!isAutoConnect) alert("Veuillez entrer une clé d'API valide."); return; } isConnecting.value = true; try { const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${reglages.value.geminiKey}`); if (!response.ok) throw new Error("Clé invalide"); const data = await response.json(); listeModeles.value = data.models.filter(m => m.name.includes('gemini') && m.supportedGenerationMethods.includes('generateContent')).map(m => ({ id: m.name.replace('models/', ''), label: m.displayName || m.name })); if (listeModeles.value.length > 0) { if (!isAutoConnect || !reglages.value.geminiModel) reglages.value.geminiModel = listeModeles.value[0].id; reglages.value.geminiConnected = true; } } catch (error) { reglages.value.geminiConnected = false; } finally { isConnecting.value = false; } }
+const zoom = ref(1); 
+const zoomer = (delta) => { zoom.value = Math.min(Math.max(0.2, zoom.value + delta), 3); }; 
+const gererZoom = (e) => { if (e.deltaY < 0) zoomer(0.05); else zoomer(-0.05); };
 
-const zoom = ref(1); const zoomer = (delta) => { zoom.value = Math.min(Math.max(0.2, zoom.value + delta), 3); }; const gererZoom = (e) => { if (e.deltaY < 0) zoomer(0.05); else zoomer(-0.05); }
-const outilActif = ref('main'); const terrainRef = ref(null); const pan = ref({ x: 0, y: 0 }); const isPanning = ref(false); const lastMousePos = ref({ x: 0, y: 0 }); const enTrainDeDessiner = ref(false); const pointDepart = ref({ x: 0, y: 0, w: 0, h: 0 }); const parcelleEnCours = ref(null); const draggedParcelle = ref(null); const resizingParcelle = ref(null); const dragOffset = ref({ x: 0, y: 0 }); const pixelsParMetre = 40; const pixelsPar10cm = 4;
-const styleParcelle = (p) => { return { left: p.x + 'px', top: p.y + 'px', width: p.width + 'px', height: p.height + 'px' }; }; 
+const outilActif = ref('main'); 
+const terrainRef = ref(null); 
+const pan = ref({ x: 0, y: 0 }); 
+const isPanning = ref(false); 
+const lastMousePos = ref({ x: 0, y: 0 }); 
+const enTrainDeDessiner = ref(false); 
+const pointDepart = ref({ x: 0, y: 0 }); 
+const parcelleEnCours = ref(null); 
+const draggedParcelle = ref(null); 
+const resizingParcelle = ref(null); 
+const dragOffset = ref({ x: 0, y: 0 }); 
+const pixelsParMetre = 40; 
+const pixelsPar10cm = 4;
+
+const styleTerrainElement = (p) => { 
+  if (p.type === 'bordure') {
+    const length = Math.hypot(p.x2 - p.x1, p.y2 - p.y1);
+    const angle = Math.atan2(p.y2 - p.y1, p.x2 - p.x1) * (180 / Math.PI);
+    return { left: p.x1 + 'px', top: p.y1 + 'px', width: length + 'px', transform: `rotate(${angle}deg)` };
+  } else if (p.type === 'arbre' || p.type === 'deco') {
+    return { left: p.x + 'px', top: p.y + 'px' };
+  } else {
+    return { left: p.x + 'px', top: p.y + 'px', width: p.width + 'px', height: p.height + 'px' }; 
+  }
+}; 
+
 const recentrerTerrain = () => { pan.value = { x: 0, y: 0 }; zoom.value = 1; }; 
-const allerAuBac = (bac) => { if(!bac) return; pan.value = { x: -bac.x + (window.innerWidth/2) - 140, y: -bac.y + (window.innerHeight/2) }; zoom.value = 1.2; vueActive.value = 'potager'; menuMobileOuvert.value = false; }
-const supprimerParcelle = (id) => { parcelles.value = parcelles.value.filter(p => p.id !== id); if(parcelleHistoriqueSelectionnee.value?.id === id) fermerHistorique(); }
+const allerAuBac = (bac) => { 
+  if(!bac) return;
+  pan.value = { x: -bac.x + (window.innerWidth/2) - 140, y: -bac.y + (window.innerHeight/2) }; 
+  zoom.value = 1.2; 
+  vueActive.value = 'potager'; 
+};
+const supprimerParcelle = (id) => { 
+  parcelles.value = parcelles.value.filter(p => p.id !== id); 
+  if(parcelleHistoriqueSelectionnee.value?.id === id) fermerHistorique(); 
+};
+
+const afficherModalArbre = ref(false);
+const afficherModalDeco = ref(false);
+const nouvelleCibleCoords = ref({x: 0, y: 0});
+const nouvelArbre = ref({ nom: '', taille: 'Moyen' });
+const nouvelleDeco = ref({ icone: '' });
 
 const getEvtCoords = (e) => { if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY }; return { x: e.clientX, y: e.clientY }; };
-const commencerAction = (e) => { const coords = getEvtCoords(e); if (outilActif.value === 'main') { isPanning.value = true; lastMousePos.value = { x: coords.x, y: coords.y } } else { const rect = terrainRef.value.getBoundingClientRect(); enTrainDeDessiner.value = true; pointDepart.value = { x: (coords.x - rect.left) / zoom.value, y: (coords.y - rect.top) / zoom.value }; parcelleEnCours.value = { nom: '', x: pointDepart.value.x, y: pointDepart.value.y, width: 0, height: 0, dimX: 0, dimY: 0, plantations_ete: [], plantations_hiver: [], dernier_arrosage: Date.now() } } }
-const commencerDragParcelle = (e, p) => { if (outilActif.value !== 'main') return; draggedParcelle.value = p; const coords = getEvtCoords(e); const rect = terrainRef.value.getBoundingClientRect(); dragOffset.value = { x: ((coords.x - rect.left) / zoom.value) - p.x, y: ((coords.y - rect.top) / zoom.value) - p.y } }
-const commencerResize = (e, p) => { resizingParcelle.value = p; const coords = getEvtCoords(e); const rect = terrainRef.value.getBoundingClientRect(); pointDepart.value = { x: (coords.x - rect.left) / zoom.value, y: (coords.y - rect.top) / zoom.value, w: p.width, h: p.height }; }
-const actionEnCours = (e) => { const coords = getEvtCoords(e); if (isPanning.value) { pan.value.x += coords.x - lastMousePos.value.x; pan.value.y += coords.y - lastMousePos.value.y; lastMousePos.value = { x: coords.x, y: coords.y } } else if (resizingParcelle.value) { const rect = terrainRef.value.getBoundingClientRect(); let mouseX = (coords.x - rect.left) / zoom.value; let mouseY = (coords.y - rect.top) / zoom.value; let rawWidth = pointDepart.value.w + (mouseX - pointDepart.value.x); let rawHeight = pointDepart.value.h + (mouseY - pointDepart.value.y); let snappedWidth = Math.max(40, Math.round(rawWidth / pixelsPar10cm) * pixelsPar10cm); let snappedHeight = Math.max(40, Math.round(rawHeight / pixelsPar10cm) * pixelsPar10cm); resizingParcelle.value.width = snappedWidth; resizingParcelle.value.height = snappedHeight; resizingParcelle.value.dimX = Math.round((snappedWidth / pixelsParMetre) * 100); resizingParcelle.value.dimY = Math.round((snappedHeight / pixelsParMetre) * 100); } else if (draggedParcelle.value) { const rect = terrainRef.value.getBoundingClientRect(); let rawX = ((coords.x - rect.left) / zoom.value) - dragOffset.value.x; let rawY = ((coords.y - rect.top) / zoom.value) - dragOffset.value.y; draggedParcelle.value.x = Math.round(rawX / pixelsPar10cm) * pixelsPar10cm; draggedParcelle.value.y = Math.round(rawY / pixelsPar10cm) * pixelsPar10cm } else if (enTrainDeDessiner.value) { const rect = terrainRef.value.getBoundingClientRect(); let mouseX = (coords.x - rect.left) / zoom.value; let mouseY = (coords.y - rect.top) / zoom.value; let rawWidth = mouseX - pointDepart.value.x; let rawHeight = mouseY - pointDepart.value.y; let originX = pointDepart.value.x; let originY = pointDepart.value.y; if (rawWidth < 0) { originX = mouseX; rawWidth = Math.abs(rawWidth); } if (rawHeight < 0) { originY = mouseY; rawHeight = Math.abs(rawHeight); } const snappedWidth = Math.max(40, Math.round(rawWidth / pixelsPar10cm) * pixelsPar10cm); const snappedHeight = Math.max(40, Math.round(rawHeight / pixelsPar10cm) * pixelsPar10cm); parcelleEnCours.value = { nom: '', x: originX, y: originY, width: snappedWidth, height: snappedHeight, plantations_ete: [], plantations_hiver: [], dimX: Math.round((snappedWidth / pixelsParMetre) * 100), dimY: Math.round((snappedHeight / pixelsParMetre) * 100), dernier_arrosage: Date.now() } } }
-const terminerAction = () => { isPanning.value = false; draggedParcelle.value = null; resizingParcelle.value = null; if (enTrainDeDessiner.value) { enTrainDeDessiner.value = false; if (parcelleEnCours.value && parcelleEnCours.value.dimX >= 20 && parcelleEnCours.value.dimY >= 20) { parcelles.value.push({ ...parcelleEnCours.value, id: Date.now() }) }; parcelleEnCours.value = null } }
 
-const chatOuvert = ref(false); const chatInput = ref(''); const isTyping = ref(false); const chatScroll = ref(null); const chatMessages = ref([{ role: 'assistant', text: 'Je suis prêt !' }]);
-const envoyerMessageIA = async () => { if (!chatInput.value.trim() || !reglages.value.geminiConnected) return; const userText = chatInput.value; chatMessages.value.push({ role: 'user', text: userText }); chatInput.value = ''; isTyping.value = true; nextTick(() => { if (chatScroll.value) chatScroll.value.scrollTop = chatScroll.value.scrollHeight; }); const promptIA = `Tu es un expert en potager. L'utilisateur: "${userText}". Réponds par un JSON strict. { "message": "Explication", "actions": [ { "type": "ajouter_graine", "graine": { "nom": "Nom", "type": "Légume-fruit", "icone": "🥒", "sol": "Limoneux", "arrosage": 3 } }, { "type": "dessiner_bac", "bac": { "largeur_cm": 150, "longueur_cm": 60 } } ] }`; try { const payload = { contents: [{ parts: [{ text: promptIA }] }], generationConfig: { temperature: 0.2 } }; const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${reglages.value.geminiModel}:generateContent?key=${reglages.value.geminiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); if (!response.ok) throw new Error("Erreur API Gemini"); const data = await response.json(); let texteReponse = data.candidates[0].content.parts[0].text.replace(/```json/g, '').replace(/```/g, '').trim(); const reponseJson = JSON.parse(texteReponse); let aDessineBac = false; let aAjouteGraine = false; if (reponseJson.actions && Array.isArray(reponseJson.actions)) { reponseJson.actions.forEach(act => { if (act.type === 'ajouter_graine' && act.graine) { act.graine.id = Date.now() + Math.random(); grainotheque.value.push(act.graine); aAjouteGraine = true; } else if (act.type === 'dessiner_bac' && act.bac) { const w_px = (act.bac.largeur_cm / 100) * pixelsParMetre; const h_px = (act.bac.longueur_cm / 100) * pixelsParMetre; parcelles.value.push({ id: Date.now() + Math.random(), nom: '', x: centreTerrain - (w_px/2), y: centreTerrain - (h_px/2), width: w_px, height: h_px, dimX: act.bac.largeur_cm, dimY: act.bac.longueur_cm, plantations_ete: [], plantations_hiver: [], dernier_arrosage: Date.now() }); aDessineBac = true; } }); } if (aDessineBac) { vueActive.value = 'potager'; recentrerTerrain(); } else if (aAjouteGraine && !aDessineBac) { vueActive.value = 'grainotheque'; } chatMessages.value.push({ role: 'assistant', text: reponseJson.message }); } catch (error) { chatMessages.value.push({ role: 'assistant', text: "Erreur de format IA." }); } finally { isTyping.value = false; nextTick(() => { if (chatScroll.value) chatScroll.value.scrollTop = chatScroll.value.scrollHeight; }); } }
+const commencerAction = (e) => { 
+  const coords = getEvtCoords(e); 
+  const rect = terrainRef.value.getBoundingClientRect(); 
+  const rawX = (coords.x - rect.left) / zoom.value;
+  const rawY = (coords.y - rect.top) / zoom.value;
+  const snappedX = Math.round(rawX / pixelsPar10cm) * pixelsPar10cm;
+  const snappedY = Math.round(rawY / pixelsPar10cm) * pixelsPar10cm;
 
-const afficherModal = ref(false); const modeEdition = ref(false); const graineParDefaut = { id: null, nom: '', type: 'Légume-fruit', icone: '🌱', sol: '', arrosage: 7, en_possession: true }; const nouvelleGraine = ref({ ...graineParDefaut }); const ouvrirModalGraine = (g = null) => { if (g) { modeEdition.value = true; nouvelleGraine.value = { ...g }; } else { modeEdition.value = false; nouvelleGraine.value = { ...graineParDefaut }; } afficherModal.value = true; }; const sauvegarderGraine = () => { if (modeEdition.value) { const index = grainotheque.value.findIndex(g => g.id === nouvelleGraine.value.id); if (index !== -1) grainotheque.value[index] = { ...nouvelleGraine.value }; } else { nouvelleGraine.value.id = Date.now(); if(!grainotheque.value) grainotheque.value = []; grainotheque.value.push({ ...nouvelleGraine.value }); } afficherModal.value = false; }; const supprimerGraine = (id) => { if(confirm("Supprimer ?")) grainotheque.value = grainotheque.value.filter(g => g.id !== id) }
+  if (outilActif.value === 'main') { 
+    isPanning.value = true; 
+    lastMousePos.value = { x: coords.x, y: coords.y };
+  } else if (outilActif.value === 'arbre') {
+    nouvelleCibleCoords.value = { x: snappedX, y: snappedY };
+    nouvelArbre.value = { nom: '', taille: 'Moyen' };
+    afficherModalArbre.value = true;
+    outilActif.value = 'main';
+  } else if (outilActif.value === 'deco') {
+    nouvelleCibleCoords.value = { x: snappedX, y: snappedY };
+    nouvelleDeco.value = { icone: '' };
+    afficherModalDeco.value = true;
+    outilActif.value = 'main';
+  } else if (outilActif.value === 'bordure') {
+    enTrainDeDessiner.value = true; 
+    pointDepart.value = { x: rawX, y: rawY }; 
+    parcelleEnCours.value = { type: 'bordure', x1: rawX, y1: rawY, x2: rawX, y2: rawY }; 
+  } else if (outilActif.value === 'bac') {
+    enTrainDeDessiner.value = true; 
+    pointDepart.value = { x: rawX, y: rawY }; 
+    parcelleEnCours.value = { type: 'bac', nom: '', x: rawX, y: rawY, width: 0, height: 0, dimX: 0, dimY: 0, plantations_ete: [], plantations_hiver: [], dernier_arrosage: Date.now() }; 
+  } 
+};
 
-const afficherModalPlantation = ref(false); const parcelleSelectionnee = ref(null); const nouvellePlantation = ref({ graine: '', quantite: 1 });
-const ouvrirModalPlantation = (parcelle) => { if (!grainotheque.value || grainotheque.value.length === 0) { alert("Ajoutez d'abord des graines !"); return; } parcelleSelectionnee.value = parcelle; nouvellePlantation.value = { graine: '', quantite: 1 }; afficherModalPlantation.value = true; }; const fermerModalPlantation = () => { afficherModalPlantation.value = false; parcelleSelectionnee.value = null; }; const validerPlantation = () => { if (parcelleSelectionnee.value && nouvellePlantation.value.graine) { const saison = saisonActive.value === 'ete' ? 'plantations_ete' : 'plantations_hiver'; if (!parcelleSelectionnee.value[saison]) parcelleSelectionnee.value[saison] = []; parcelleSelectionnee.value[saison].push({ id_graine: nouvellePlantation.value.graine.id, nom: nouvellePlantation.value.graine.nom, icone: nouvellePlantation.value.graine.icone, quantite: nouvellePlantation.value.quantite, date_plantation: getCurrentYearMonth() }); parcelleSelectionnee.value.dernier_arrosage = Date.now(); syncParcellesForcer(); fermerModalPlantation(); } }; 
+const validerAjoutArbre = () => {
+  parcelles.value.push({
+    id: Date.now(), type: 'arbre', taille: nouvelArbre.value.taille, nom: nouvelArbre.value.nom,
+    x: nouvelleCibleCoords.value.x, y: nouvelleCibleCoords.value.y,
+    plantations_ete: [], plantations_hiver: [], dernier_arrosage: Date.now()
+  });
+  afficherModalArbre.value = false;
+};
+
+const validerAjoutDeco = () => {
+  parcelles.value.push({
+    id: Date.now(), type: 'deco', icone: nouvelleDeco.value.icone,
+    x: nouvelleCibleCoords.value.x, y: nouvelleCibleCoords.value.y
+  });
+  afficherModalDeco.value = false;
+};
+
+const commencerDragParcelle = (e, p) => { 
+  if (outilActif.value !== 'main') return; 
+  draggedParcelle.value = p; 
+  const coords = getEvtCoords(e); 
+  const rect = terrainRef.value.getBoundingClientRect(); 
+  const rawX = (coords.x - rect.left) / zoom.value;
+  const rawY = (coords.y - rect.top) / zoom.value;
+  if (p.type === 'bordure') {
+    dragOffset.value = { x: rawX - p.x1, y: rawY - p.y1 };
+  } else {
+    dragOffset.value = { x: rawX - p.x, y: rawY - p.y };
+  }
+}
+
+const commencerResize = (e, p) => { 
+  resizingParcelle.value = p; 
+  const coords = getEvtCoords(e); 
+  const rect = terrainRef.value.getBoundingClientRect(); 
+  pointDepart.value = { x: (coords.x - rect.left) / zoom.value, y: (coords.y - rect.top) / zoom.value, w: p.width, h: p.height }; 
+};
+
+const actionEnCours = (e) => { 
+  const coords = getEvtCoords(e); 
+  const rect = terrainRef.value.getBoundingClientRect(); 
+  let mouseX = (coords.x - rect.left) / zoom.value; 
+  let mouseY = (coords.y - rect.top) / zoom.value; 
+
+  if (isPanning.value) { 
+    pan.value.x += coords.x - lastMousePos.value.x; 
+    pan.value.y += coords.y - lastMousePos.value.y; 
+    lastMousePos.value = { x: coords.x, y: coords.y };
+  } else if (resizingParcelle.value) { 
+    if (resizingParcelle.value.type === 'bordure') {
+      resizingParcelle.value.x2 = Math.round(mouseX / pixelsPar10cm) * pixelsPar10cm;
+      resizingParcelle.value.y2 = Math.round(mouseY / pixelsPar10cm) * pixelsPar10cm;
+    } else {
+      let rawWidth = pointDepart.value.w + (mouseX - pointDepart.value.x); 
+      let rawHeight = pointDepart.value.h + (mouseY - pointDepart.value.y); 
+      let snappedWidth = Math.max(40, Math.round(rawWidth / pixelsPar10cm) * pixelsPar10cm); 
+      let snappedHeight = Math.max(40, Math.round(rawHeight / pixelsPar10cm) * pixelsPar10cm); 
+      resizingParcelle.value.width = snappedWidth; 
+      resizingParcelle.value.height = snappedHeight; 
+      resizingParcelle.value.dimX = Math.round((snappedWidth / pixelsParMetre) * 100); 
+      resizingParcelle.value.dimY = Math.round((snappedHeight / pixelsParMetre) * 100); 
+    }
+  } else if (draggedParcelle.value) { 
+    let rawX = mouseX - dragOffset.value.x; 
+    let rawY = mouseY - dragOffset.value.y; 
+    let snappedX = Math.round(rawX / pixelsPar10cm) * pixelsPar10cm; 
+    let snappedY = Math.round(rawY / pixelsPar10cm) * pixelsPar10cm;
+    
+    if (draggedParcelle.value.type === 'bordure') {
+      const dx = snappedX - draggedParcelle.value.x1;
+      const dy = snappedY - draggedParcelle.value.y1;
+      draggedParcelle.value.x1 += dx;
+      draggedParcelle.value.y1 += dy;
+      draggedParcelle.value.x2 += dx;
+      draggedParcelle.value.y2 += dy;
+    } else {
+      draggedParcelle.value.x = snappedX; 
+      draggedParcelle.value.y = snappedY;
+    }
+  } else if (enTrainDeDessiner.value) { 
+    if (parcelleEnCours.value.type === 'bordure') {
+      parcelleEnCours.value.x2 = mouseX;
+      parcelleEnCours.value.y2 = mouseY;
+    } else {
+      let rawWidth = mouseX - pointDepart.value.x; 
+      let rawHeight = mouseY - pointDepart.value.y; 
+      let originX = pointDepart.value.x; 
+      let originY = pointDepart.value.y; 
+      if (rawWidth < 0) { originX = mouseX; rawWidth = Math.abs(rawWidth); } 
+      if (rawHeight < 0) { originY = mouseY; rawHeight = Math.abs(rawHeight); } 
+      const snappedWidth = Math.max(40, Math.round(rawWidth / pixelsPar10cm) * pixelsPar10cm); 
+      const snappedHeight = Math.max(40, Math.round(rawHeight / pixelsPar10cm) * pixelsPar10cm); 
+      parcelleEnCours.value.x = originX;
+      parcelleEnCours.value.y = originY;
+      parcelleEnCours.value.width = snappedWidth;
+      parcelleEnCours.value.height = snappedHeight;
+      parcelleEnCours.value.dimX = Math.round((snappedWidth / pixelsParMetre) * 100); 
+      parcelleEnCours.value.dimY = Math.round((snappedHeight / pixelsParMetre) * 100);
+    }
+  } 
+};
+
+const terminerAction = () => { 
+  isPanning.value = false; draggedParcelle.value = null; resizingParcelle.value = null; 
+  if (enTrainDeDessiner.value) { 
+    enTrainDeDessiner.value = false; 
+    if (parcelleEnCours.value.type === 'bordure') {
+      const dist = Math.hypot(parcelleEnCours.value.x2 - parcelleEnCours.value.x1, parcelleEnCours.value.y2 - parcelleEnCours.value.y1);
+      if (dist > 10) parcelles.value.push({ ...parcelleEnCours.value, id: Date.now() });
+    } else if (parcelleEnCours.value.type === 'bac' && parcelleEnCours.value.dimX >= 20 && parcelleEnCours.value.dimY >= 20) { 
+      parcelles.value.push({ ...parcelleEnCours.value, id: Date.now() });
+    }
+    parcelleEnCours.value = null; 
+  } 
+};
+
+const afficherModal = ref(false); const modeEdition = ref(false); const graineParDefaut = { id: null, nom: '', type: 'Légume-fruit', icone: '🌱', sol: '', arrosage: 7, godet_debut: '', godet_fin: '', plantation_debut: '', plantation_fin: '', recolte_debut: '', recolte_fin: '', en_possession: true }; const nouvelleGraine = ref({ ...graineParDefaut }); 
+const ouvrirModalGraine = (g = null) => { if (g) { modeEdition.value = true; nouvelleGraine.value = { ...g }; } else { modeEdition.value = false; nouvelleGraine.value = { ...graineParDefaut }; } afficherModal.value = true; }; 
+const sauvegarderGraine = () => { if (modeEdition.value) { const index = grainotheque.value.findIndex(g => g.id === nouvelleGraine.value.id); if (index !== -1) grainotheque.value[index] = { ...nouvelleGraine.value }; } else { nouvelleGraine.value.id = Date.now(); if(!grainotheque.value) grainotheque.value = []; grainotheque.value.push({ ...nouvelleGraine.value }); } afficherModal.value = false; }; 
+const supprimerGraine = (id) => { if(confirm("Supprimer ? (Cette action ne supprimera pas les godets en cours associés)")) grainotheque.value = grainotheque.value.filter(g => g.id !== id); };
+
+const afficherModalPlantation = ref(false); const parcelleSelectionnee = ref(null); const nouvellePlantation = ref({ graine: '', quantite: 1 }); 
+const ouvrirModalPlantation = (parcelle) => { if (!grainotheque.value || grainotheque.value.length === 0) { alert("Ajoutez des graines d'abord !"); return; } parcelleSelectionnee.value = parcelle; nouvellePlantation.value = { graine: '', quantite: 1 }; afficherModalPlantation.value = true; }; 
+const fermerModalPlantation = () => { afficherModalPlantation.value = false; parcelleSelectionnee.value = null; }; 
+const validerPlantation = () => { if (parcelleSelectionnee.value && nouvellePlantation.value.graine) { const saison = saisonActive.value === 'ete' ? 'plantations_ete' : 'plantations_hiver'; if (!parcelleSelectionnee.value[saison]) parcelleSelectionnee.value[saison] = []; parcelleSelectionnee.value[saison].push({ id_graine: nouvellePlantation.value.graine.id, nom: nouvellePlantation.value.graine.nom, icone: nouvellePlantation.value.graine.icone, quantite: nouvellePlantation.value.quantite, date_plantation: getCurrentYearMonth() }); parcelleSelectionnee.value.dernier_arrosage = Date.now(); syncParcellesForcer(); fermerModalPlantation(); } }; 
+
 const afficherModalGestionBac = ref(false); const plantesEnGestion = ref([]); const parcelleEnGestion = ref(null); 
-const ouvrirModalGestionBac = (parcelle) => { parcelleEnGestion.value = parcelle; const saison = saisonActive.value === 'ete' ? 'plantations_ete' : 'plantations_hiver'; plantesEnGestion.value = parcelle[saison] || []; afficherModalGestionBac.value = true; }; const retirerPlanteDuBac = (index) => { if(confirm("Retirer ?")) { plantesEnGestion.value.splice(index, 1); syncParcellesForcer(); } };
-const parcelleHistoriqueSelectionnee = ref(null); const ouvrirHistorique = (parcelle) => { parcelleHistoriqueSelectionnee.value = parcelle; }; const fermerHistorique = () => { parcelleHistoriqueSelectionnee.value = null; }; 
+const ouvrirModalGestionBac = (parcelle) => { parcelleEnGestion.value = parcelle; const saison = saisonActive.value === 'ete' ? 'plantations_ete' : 'plantations_hiver'; plantesEnGestion.value = parcelle[saison] || []; plantesEnGestion.value.forEach(p => { if(!p.date_plantation) p.date_plantation = getCurrentYearMonth(); }); afficherModalGestionBac.value = true; }; 
+const retirerPlanteDuBac = (index) => { if(confirm("Retirer cette plante du bac ?")) { plantesEnGestion.value.splice(index, 1); syncParcellesForcer(); } };
+
+const parcelleHistoriqueSelectionnee = ref(null); 
+const ouvrirHistorique = (parcelle) => { parcelleHistoriqueSelectionnee.value = parcelle; }; 
+const fermerHistorique = () => { parcelleHistoriqueSelectionnee.value = null; }; 
+
 const historiqueParcelle = computed(() => { if (!parcelleHistoriqueSelectionnee.value) return []; const p = parcelleHistoriqueSelectionnee.value; const toutesPlantations = []; if (p.plantations_ete) p.plantations_ete.forEach(pl => toutesPlantations.push({...pl, saison: 'ete'})); if (p.plantations_hiver) p.plantations_hiver.forEach(pl => toutesPlantations.push({...pl, saison: 'hiver'})); toutesPlantations.sort((a, b) => { const dateA = a.date_plantation || '1970-01'; const dateB = b.date_plantation || '1970-01'; return dateB.localeCompare(dateA); }); const groupes = []; let currentGroup = null; toutesPlantations.forEach(pl => { const d = pl.date_plantation || ''; if (!currentGroup || currentGroup.date !== d) { currentGroup = { date: d, formatted: formatMoisAnnee(d), plantes: [] }; groupes.push(currentGroup); } currentGroup.plantes.push(pl); }); return groupes; });
+
 const obtenirPlantesUnitaires = (parcelle) => { const plantes = []; const saison = saisonActive.value === 'ete' ? 'plantations_ete' : 'plantations_hiver'; if (!parcelle[saison]) return plantes; parcelle[saison].forEach(pl => { for (let i = 0; i < pl.quantite; i++) { plantes.push({ nom: pl.nom, icone: pl.icone || '🌱' }) } }); return plantes; };
 const calculerGrillePlantes = (parcelle) => { const totalPlants = obtenirPlantesUnitaires(parcelle).length; if (totalPlants === 0) return { display: 'none' }; const colonnes = Math.ceil(Math.sqrt(totalPlants)); const lignes = Math.ceil(totalPlants / colonnes); return { display: 'grid', gridTemplateColumns: `repeat(${colonnes}, 1fr)`, gridTemplateRows: `repeat(${lignes}, 1fr)`, width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, padding: '8px', alignItems: 'center', justifyItems: 'center', pointerEvents: 'none' }; };
-const culturesPlantees = computed(() => { const recap = {}; (parcelles.value || []).forEach(p => { const saison = saisonActive.value === 'ete' ? 'plantations_ete' : 'plantations_hiver'; if (p[saison]) { p[saison].forEach(pl => { if (!recap[pl.id_graine]) { recap[pl.id_graine] = { id: pl.id_graine, nom: pl.nom, icone: pl.icone, quantiteTotale: 0, type: 'Inconnu' } }; recap[pl.id_graine].quantiteTotale += pl.quantite; }); } }); return Object.values(recap).sort((a, b) => b.quantiteTotale - a.quantiteTotale); });
+
+const culturesPlantees = computed(() => { const recap = {}; (parcelles.value || []).forEach(p => { const saison = saisonActive.value === 'ete' ? 'plantations_ete' : 'plantations_hiver'; if ((!p.type || p.type === 'bac') && p[saison]) { p[saison].forEach(pl => { if (!recap[pl.id_graine]) { recap[pl.id_graine] = { id: pl.id_graine, nom: pl.nom, icone: pl.icone, quantiteTotale: 0, type: 'Inconnu' } }; recap[pl.id_graine].quantiteTotale += pl.quantite; }); } }); return Object.values(recap).sort((a, b) => b.quantiteTotale - a.quantiteTotale); });
+
 const totalPlantsCultives = computed(() => culturesPlantees.value.reduce((acc, c) => acc + c.quantiteTotale, 0));
-const bacsUtilises = computed(() => (parcelles.value || []).filter(p => { const saison = saisonActive.value === 'ete' ? 'plantations_ete' : 'plantations_hiver'; return p[saison] && p[saison].length > 0; }).length);
+const bacsTotal = computed(() => (parcelles.value || []).filter(p => !p.type || p.type === 'bac').length);
+const bacsUtilises = computed(() => (parcelles.value || []).filter(p => { const saison = saisonActive.value === 'ete' ? 'plantations_ete' : 'plantations_hiver'; return (!p.type || p.type === 'bac') && p[saison] && p[saison].length > 0; }).length);
+
 </script>
 
 <style>
@@ -865,9 +1103,11 @@ body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-a
 .content { flex-grow: 1; display: flex; flex-direction: column; height: 100vh; transition: width 0.3s; width: 100%;}
 .vue-scrollable { overflow-y: auto; padding: 40px; height: 100%; background: white; box-sizing: border-box;}
 
+/* MOBILE ELEMENTS */
 .btn-hamburger { display: none; position: fixed; top: 15px; left: 15px; z-index: 900; background: white; border: 1px solid var(--border-light); border-radius: 8px; font-size: 24px; padding: 5px 12px; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.1); color: var(--text-main);}
 .show-on-mobile { display: none; }
 
+/* --- SIDEBAR --- */
 .sidebar { width: 280px; background: var(--bg-sidebar); color: white; padding: 30px 20px; flex-shrink: 0; z-index: 2000; display: flex; flex-direction: column; position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);}
 .sidebar.reduit { width: 80px; padding: 30px 10px; align-items: center;}
 .btn-toggle-menu { position: absolute; top: 35px; right: -14px; width: 28px; height: 28px; border-radius: 50%; background: white; border: 1px solid var(--border-light); color: var(--text-main); font-size: 18px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 30;}
@@ -893,39 +1133,67 @@ body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-a
 .btn-arroser-tout { padding: 14px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: #0288d1; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.95em; transition: background 0.2s; box-shadow: 0 4px 10px rgba(2, 136, 209, 0.4);}
 .btn-arroser-tout:hover { background: #0277bd; }
 
+/* --- POTAGER --- */
 .vue-potager { position: relative; height: 100%; width: 100%; display: flex; overflow: hidden;}
 .workspace-terrain { flex-grow: 1; height: 100%; position: relative; overflow: hidden; background-color: var(--grass-bg); transition: background-color 1s ease; touch-action: none; }
 .workspace-terrain.mode-ete { background-color: #5f8d4e; background-image: linear-gradient(115deg, rgba(255,255,255,0.03) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.03) 75%, rgba(255,255,255,0.03)), linear-gradient(245deg, rgba(0,0,0,0.03) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.03) 75%, rgba(0,0,0,0.03)); background-size: 20px 20px; }
-.workspace-terrain.mode-hiver { background-color: #d1d9d7; }
 
-.neige-globale-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 90; background-image: radial-gradient(rgba(255,255,255,0.9) 1px, transparent 2px), radial-gradient(rgba(255,255,255,0.8) 1px, transparent 2px); background-size: 50px 50px, 70px 70px; background-position: 0 0, 25px 25px; animation: neige 20s linear infinite; }
+/* MODIFICATION COULEUR MODE HIVER */
+.workspace-terrain.mode-hiver { background-color: #8fa693; }
+
+/* ANIMATION NEIGE GLOBALE (CORRIGÉE AVEC BEFORE) */
+.workspace-terrain.mode-hiver::before { content: ''; position: absolute; top:0; left:0; width: 100%; height: 100%; pointer-events: none; z-index: 10; background-image: radial-gradient(rgba(255,255,255,0.9) 1px, transparent 2px), radial-gradient(rgba(255,255,255,0.8) 1px, transparent 2px); background-size: 50px 50px, 70px 70px; background-position: 0 0, 25px 25px; animation: neige 20s linear infinite; }
 @keyframes neige { from { background-position: 0 0, 25px 25px; } to { background-position: 500px 1000px, 725px 1000px; } }
 
+/* ANIMATION PLUIE GLOBALE */
 .pluie-globale-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 99; background: rgba(3, 169, 244, 0.1); background-image: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0.3)); animation: fadeInOut 2.5s ease; }
 .pluie-globale-overlay::after { content: '💧 💧 💧 💧 💧 💧 💧 💧 💧 💧 💧 💧 💧 💧'; font-size: 24px; position: absolute; top: -50px; left: 0; width: 100%; display: flex; justify-content: space-around; animation: pluieAnimGlobal 0.4s linear infinite; }
 @keyframes pluieAnimGlobal { 0% { transform: translateY(-50px); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateY(100vh); opacity: 0; } }
 @keyframes fadeInOut { 0% { opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { opacity: 0; } }
 
-.hud-top { position: absolute; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; align-items: flex-start; z-index: 110; pointer-events: none; }
-.panneau-outils { pointer-events: auto; background: rgba(255,255,255,0.9); backdrop-filter: blur(8px); border: 1px solid var(--border-light); border-radius: 8px; padding: 6px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); display: flex; gap: 6px; align-items: center; flex-wrap: wrap;}
-.btn-outil { padding: 8px 14px; border: none; background: transparent; cursor: pointer; border-radius: 6px; font-weight: 500; color: var(--text-muted); font-size: 0.9em;}
-.btn-outil.actif { background: white; color: var(--text-main); box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-weight: 600;}
-.arrosoir-global-btn { color: #0288d1; font-weight: bold; }
-.icon-only { font-size: 1.1em; padding: 8px 10px; color: var(--text-main); }
-.zoom-text { font-size: 0.8em; font-weight: 600; color: var(--text-muted); min-width: 40px; text-align: center; }
-.separateur { width: 1px; height: 20px; background-color: var(--border-light); margin: 0 4px;}
-
-.btn-saison { font-weight: 600; padding: 8px 16px; border-radius: 6px; color: white !important;}
-.btn-saison.ete { background: #f57f17; box-shadow: 0 2px 5px rgba(245, 127, 23, 0.3); }
-.btn-saison.hiver { background: #0288d1; box-shadow: 0 2px 5px rgba(2, 136, 209, 0.3); }
+/* --- BARRE D'OUTILS GAUCHE --- */
+.toolbar-vertical { position: absolute; top: 20px; left: 20px; display: flex; flex-direction: column; gap: 8px; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); padding: 10px; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.15); z-index: 110; pointer-events: auto; }
+.btn-tool-v { width: 44px; height: 44px; border: none; background: transparent; border-radius: 8px; font-size: 1.4em; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-muted); transition: 0.2s; }
+.btn-tool-v:hover { background: #f0f4f1; color: var(--text-main); }
+.btn-tool-v.actif { background: white; color: var(--text-main); box-shadow: 0 2px 5px rgba(0,0,0,0.1); border: 2px solid var(--accent-gold); }
+.zoom-text-v { font-size: 0.7em; font-weight: bold; text-align: center; color: var(--text-main); }
+.separateur-v { width: 60%; height: 2px; background: var(--border-light); margin: 2px auto; }
+.btn-saison-v { font-size: 1.6em; }
+.arrosoir-global-btn { color: #0288d1; }
 
 .terrain-infini { position: absolute; width: 10000px; height: 10000px; left: 50%; top: 50%; margin-left: -5000px; margin-top: -5000px; background-image: linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px); background-size: 40px 40px, 40px 40px; cursor: crosshair; transform-origin: center center; z-index: 1;}
 .centre-absolu { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); color: rgba(255,255,255,0.5); font-weight: 500; font-size: 0.8em; pointer-events: none;}
-.parcelle { position: absolute; border: 10px solid var(--wood-border); border-radius: 4px; display: flex; justify-content: center; align-items: center; box-shadow: 0 5px 10px rgba(0,0,0,0.3), inset 0 2px 5px rgba(0,0,0,0.4); cursor: grab; background: var(--wood-border); transition: border-color 0.5s; }
+
+/* ELEMENTS DU TERRAIN UNIFIÉS */
+.element-terrain { position: absolute; display: flex; justify-content: center; align-items: center; cursor: grab; transition: border-color 0.5s; box-sizing: border-box; }
+.element-terrain.en-mouvement { z-index: 100; cursor: grabbing; box-shadow: 0 15px 30px rgba(0,0,0,0.4), inset 0 2px 5px rgba(0,0,0,0.4); transform: scale(1.01);}
+.element-terrain.en-cours-dessin { opacity: 0.7; pointer-events: none; }
+
+/* TYPE: BAC */
+.element-terrain.type-bac { border: 10px solid var(--wood-border); border-radius: 4px; box-shadow: 0 5px 10px rgba(0,0,0,0.3), inset 0 2px 5px rgba(0,0,0,0.4); background: var(--wood-border); }
+.element-terrain.type-bac.en-cours-dessin { background: transparent; border: 4px dashed var(--wood-border); }
+.element-terrain.type-bac.en-cours-dessin .terre-interieure { background-color: rgba(62, 39, 35, 0.3); background-image: none; box-shadow: none;}
 .terre-interieure { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--soil-bg); border-radius: 2px; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); overflow: hidden; transition: background-color 0.5s; }
 
-.workspace-terrain.mode-hiver .parcelle { border-color: #6a5e5a; }
-.workspace-terrain.mode-hiver .terre-interieure { background-color: #554d48; }
+/* TYPE: BORDURE (Clôture) */
+.element-terrain.type-bordure { height: 12px; background: #8B5A2B; background-image: repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(0,0,0,0.1) 5px, rgba(0,0,0,0.1) 10px); border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.4); transform-origin: 0 50%; }
+
+/* TYPE: ARBRE & DECO */
+.element-terrain.type-arbre, .element-terrain.type-deco { background: transparent; border: 2px dashed transparent; border-radius: 8px; transform: translate(-50%, -50%); width: 60px !important; height: 60px !important;}
+.element-terrain.type-arbre:hover, .element-terrain.type-deco:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.8); }
+.element-terrain.type-arbre::before { content: '🌳'; display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; filter: drop-shadow(0 10px 10px rgba(0,0,0,0.4)); line-height: 1; }
+.element-terrain.type-arbre.taille-Petit { width: 40px !important; height: 40px !important; }
+.element-terrain.type-arbre.taille-Petit::before { font-size: 40px; }
+.element-terrain.type-arbre.taille-Moyen { width: 80px !important; height: 80px !important; }
+.element-terrain.type-arbre.taille-Moyen::before { font-size: 80px; }
+.element-terrain.type-arbre.taille-Grand { width: 140px !important; height: 140px !important; }
+.element-terrain.type-arbre.taille-Grand::before { font-size: 140px; }
+
+.icone-deco { display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; filter: drop-shadow(0 5px 5px rgba(0,0,0,0.3)); line-height: 1; font-size: 40px;}
+
+.workspace-terrain.mode-hiver .element-terrain.type-bac { border-color: #6a5e5a; }
+.workspace-terrain.mode-hiver .element-terrain.type-bac .terre-interieure { background-color: #554d48; }
+.workspace-terrain.mode-hiver .element-terrain.type-bordure { background: #6a5e5a; }
 
 .pluie-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 169, 244, 0.2); z-index: 20; pointer-events: none; overflow: hidden; border-radius: 2px;}
 .pluie-container::before { content: '💧💧💧💧💧💧'; position: absolute; font-size: 14px; top: -20px; animation: pluieAnim 0.5s linear infinite; display: flex; flex-wrap: wrap; text-align: center; width: 100%; justify-content: space-around;}
@@ -934,25 +1202,37 @@ body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-a
 .indicateur-soif { position: absolute; bottom: 10px; right: 10px; font-size: 24px; animation: clignoteSoif 1.5s infinite; z-index: 15; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); pointer-events: none;}
 @keyframes clignoteSoif { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.9); } }
 
-.btn-action-parcelle { position: absolute; width: 28px; height: 28px; border-radius: 50%; border: 2px solid white; cursor: pointer; display: none; z-index: 50; align-items: center; justify-content: center; padding: 0; box-shadow: 0 3px 6px rgba(0,0,0,0.3); font-size: 14px; font-weight: bold;}
-.btn-supprimer { top: -14px; right: -14px; background: white; color: #d32f2f; }
-.btn-planter { top: -14px; right: 20px; background: white; color: #388e3c; }
-.btn-arroser { top: -14px; right: 54px; background: #e1f5fe; color: #0288d1; border-color: #0288d1;} 
-.btn-gerer { top: -14px; right: 88px; background: white; color: #1976d2; }
-.btn-historique { top: -14px; right: 122px; background: white; color: #8e24aa; }
-.parcelle:hover .btn-action-parcelle { display: flex; }
-.grille-plantes { z-index: 5; } .plante-visuelle { font-size: 1.2em; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5));}
-.label-dim { position: absolute; top: -22px; left: 50%; transform: translateX(-50%); font-size: 0.75em; font-weight: 700; color: #000; pointer-events: none; text-shadow: 1px 1px 2px rgba(255,255,255,0.7), -1px -1px 2px rgba(255,255,255,0.7); }
-.resize-handle { position: absolute; right: -8px; bottom: -8px; width: 16px; height: 16px; background: white; border: 3px solid var(--wood-border); border-radius: 50%; cursor: nwse-resize; z-index: 100;}
+/* BOUTONS ACTIONS FLOTTANTS COMMUNS À TOUS LES ÉLÉMENTS */
+.parcelle-actions-container { position: absolute; top: -45px; left: 50%; transform: translateX(-50%); display: none; gap: 6px; background: white; padding: 6px 10px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 1000; white-space: nowrap; }
+.element-terrain:hover .parcelle-actions-container { display: flex; }
+.btn-action-parcelle { width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--border-light); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; background: white; transition: 0.2s; }
+.btn-action-parcelle:hover { border-color: var(--text-main); transform: scale(1.1); }
+.btn-supprimer { color: #d32f2f; }
+.btn-planter { color: #388e3c; }
+.btn-arroser { color: #0288d1; background: #e1f5fe; border-color: #0288d1; } 
+.btn-gerer { color: #1976d2; }
+.btn-historique { color: #8e24aa; }
 
-.parcelle.en-mouvement { z-index: 100; cursor: grabbing; box-shadow: 0 15px 30px rgba(0,0,0,0.4), inset 0 2px 5px rgba(0,0,0,0.4); transform: scale(1.01);}
-.parcelle.en-cours-dessin { border: 4px dashed var(--wood-border); opacity: 0.7; pointer-events: none; background: transparent;}
-.parcelle.en-cours-dessin .terre-interieure { background-color: rgba(62, 39, 35, 0.3); background-image: none; box-shadow: none;}
+.grille-plantes { z-index: 5; } .plante-visuelle { font-size: 1.2em; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5));}
+.label-dim { position: absolute; top: -22px; left: 50%; transform: translateX(-50%); font-size: 0.75em; font-weight: 700; color: #000; pointer-events: none; text-shadow: 1px 1px 2px rgba(255,255,255,0.7), -1px -1px 2px rgba(255,255,255,0.7); white-space: nowrap;}
+.label-dim-arbre { position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); font-size: 0.85em; font-weight: 700; color: #000; pointer-events: none; text-shadow: 1px 1px 2px rgba(255,255,255,0.8); white-space: nowrap; z-index: 30;}
+
+/* POIGNÉE DE REDIMENSIONNEMENT */
+.resize-handle { position: absolute; right: -8px; bottom: -8px; width: 16px; height: 16px; background: white; border: 3px solid var(--wood-border); border-radius: 50%; cursor: nwse-resize; z-index: 100;}
+.element-terrain.type-bordure .resize-handle { right: -8px; top: -2px; bottom: auto; cursor: crosshair; }
+
 .conflit-actif { animation: pulseRed 3s infinite; }
 @keyframes pulseRed { 0% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.5); border-color: #d32f2f; } 70% { box-shadow: 0 0 0 10px rgba(211, 47, 47, 0); border-color: var(--wood-border); } 100% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0); border-color: var(--wood-border); } }
 .indicateur-conflit { position: absolute; top: -12px; left: -12px; background: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 2px solid #d32f2f; z-index: 60; box-shadow: 0 2px 5px rgba(0,0,0,0.3); cursor: help;}
 
-.panel-historique { width: 320px; background: white; border-left: 1px solid var(--border-light); z-index: 30; display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: absolute; right: 0; top: 0; height: 100%; box-shadow: -5px 0 20px rgba(0,0,0,0.05);}
+/* MODALE DECO (Grille) */
+.grille-emojis-deco { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; background: #fafcfa; border: 1px solid var(--border-light); border-radius: 8px; padding: 15px; }
+.emoji-deco-item { font-size: 2.5rem; cursor: pointer; padding: 10px; border-radius: 12px; transition: 0.2s; border: 2px solid transparent; }
+.emoji-deco-item:hover { background: #e0e5e2; transform: scale(1.1); }
+.emoji-deco-item.actif { background: white; border-color: var(--accent-gold); box-shadow: 0 4px 10px rgba(0,0,0,0.1); transform: scale(1.1); }
+
+/* TIMELINE HISTORIQUE (PANNEAU DROIT) */
+.panel-historique { width: 320px; background: white; border-left: 1px solid var(--border-light); z-index: 120; display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: absolute; right: 0; top: 0; height: 100%; box-shadow: -5px 0 20px rgba(0,0,0,0.05);}
 .panel-historique.ouvert { transform: translateX(0); }
 .ph-header { padding: 20px; border-bottom: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center; background: #fafcfa;}
 .ph-header h3 { margin: 0; font-family: 'Cinzel Decorative', serif; font-size: 1.2em;}
@@ -971,6 +1251,7 @@ body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-a
 .badge-saison-petit.ete { background: #f57f17; }
 .badge-saison-petit.hiver { background: #0288d1; }
 
+/* AUTRES VUES (COMMUNES) */
 .header-epure { margin-bottom: 30px; border-bottom: 1px solid var(--border-light); padding-bottom: 20px;}
 .header-epure h2 { margin: 0 0 5px 0; font-family: 'Cinzel Decorative', serif; font-size: 2em; color: var(--text-main);}
 .sous-titre { margin: 0; color: var(--text-muted); font-size: 1em;}
@@ -1010,6 +1291,7 @@ body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-a
 .info-tag { background: #e0e5e2; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; margin: 0; }
 .ligne-saison { display: flex; align-items: center; gap: 8px; font-size: 0.85em; color: var(--text-main);}
 
+/* --- CONSEILS ASSOCIATIONS --- */
 .carte-conseil { border-left: 4px solid #4caf50; }
 .assoc-titre { margin: 0 0 15px 0; color: var(--text-main); font-size: 1.4em; border-bottom: 1px solid var(--border-light); padding-bottom: 10px;}
 .assoc-bloc { background: #fafcfa; border-radius: 8px; padding: 15px;}
@@ -1027,6 +1309,7 @@ body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-a
 .box-fav { background: #e8f5e9; border: 1px solid #c8e6c9; color: #2e7d32; }
 .box-defav { background: #ffebee; border: 1px solid #ffcdd2; color: #c62828; }
 
+/* --- ALERTES SAISONS & NOTIFICATIONS --- */
 .alertes-grid { display: flex; flex-direction: column; gap: 30px; }
 .alertes-container { background: #fff8e1; border: 1px solid #ffecb3; padding: 20px; border-radius: 12px; margin-bottom: 30px;}
 .arrosage-container { background: #e1f5fe; border-color: #81d4fa; }
@@ -1047,8 +1330,10 @@ body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-a
 
 .mt-15 { margin-top: 15px; }
 .mt-30 { margin-top: 30px; }
+.mb-15 { margin-bottom: 15px; }
 .mb-30 { margin-bottom: 30px; }
 
+/* STATS ET MÉTÉO */
 .meteo-dashboard { display: flex; gap: 20px; background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%); border-radius: 16px; padding: 25px; border: 1px solid #80deea; color: #006064; box-shadow: 0 8px 24px rgba(0,0,0,0.05);}
 .meteo-current { flex: 1; display: flex; flex-direction: column; justify-content: center; border-right: 1px solid rgba(0, 151, 167, 0.2); padding-right: 20px;}
 .meteo-city { font-weight: 600; font-size: 1.1em; margin-bottom: 10px; opacity: 0.8;}
@@ -1083,10 +1368,10 @@ body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-a
 .qte-nombre { font-size: 1.4em; font-weight: 700; }
 .qte-label { font-size: 0.6em; text-transform: uppercase; opacity: 0.8;}
 
+/* --- RÉGLAGES --- */
 .grid-reglages { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 .carte-reglage { background: white; border-radius: 12px; border: 1px solid var(--border-light); overflow: hidden;}
 .carte-discord { border-top: 4px solid #5865F2; } 
-.carte-ia { border-top: 4px solid #8e24aa; } 
 .carte-localisation { border-top: 4px solid #03a9f4; }
 .reglage-header { background: #fafcfa; padding: 20px; border-bottom: 1px solid var(--border-light); display: flex; align-items: center; gap: 15px;}
 .reglage-icone { font-size: 1.8em; }
@@ -1101,13 +1386,6 @@ body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-a
 input, select { padding: 10px; border: 1px solid var(--border-light); border-radius: 6px; font-family: inherit; font-size: 0.95em; transition: all 0.2s; background: #fafcfa; width: 100%; box-sizing: border-box;}
 input:focus, select:focus { border-color: var(--accent-gold); outline: none; background: white; box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);}
 .btn-submit { background: var(--text-main); color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s;}
-.connexion-status { display: flex; align-items: center; gap: 10px; font-size: 0.9em; padding: 10px; border-radius: 6px; background: #f4f6f5;}
-.pastille { width: 10px; height: 10px; border-radius: 50%; }
-.status-wait .pastille { background: #ff9800; }
-.status-ok .pastille { background: #4caf50; }
-.status-ok { background: #e8f5e9; color: #2e7d32;}
-.slide-in { animation: slideIn 0.3s ease-out; }
-@keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
 
 /* TOGGLE GENERAL */
 .toggle-container { display: flex; align-items: center; gap: 12px; cursor: pointer; user-select: none;}
@@ -1118,30 +1396,9 @@ input:focus, select:focus { border-color: var(--accent-gold); outline: none; bac
 .toggle-container input:checked + .toggle-slider::before { transform: translateX(18px); }
 .toggle-label { font-size: 0.9em; color: var(--text-main); font-weight: 500;}
 
-/* CHATBOT */
-.chatbot-wrapper { position: fixed; bottom: 30px; right: 30px; z-index: 9999; display: flex; flex-direction: column; align-items: flex-end;}
-.chatbot-toggle-btn { width: 60px; height: 60px; border-radius: 50%; background: var(--bg-sidebar); border: 3px solid var(--accent-gold); color: white; font-size: 24px; cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.3); display: flex; justify-content: center; align-items: center; transition: transform 0.2s;}
-.chatbot-toggle-btn:hover { transform: scale(1.1); }
-.pulse { animation: pulseAnim 2s infinite; }
-@keyframes pulseAnim { 0% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(212, 175, 55, 0); } 100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0); } }
-.chatbot-window { width: 350px; height: 500px; background: white; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); margin-bottom: 20px; border: 1px solid var(--border-light); display: flex; flex-direction: column; overflow: hidden; animation: slideUp 0.3s ease-out;}
-@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-.chatbot-header { background: linear-gradient(135deg, #131b16 0%, #2c3e35 100%); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;}
-.chatbot-title { font-weight: 600; font-size: 1.1em; display: flex; align-items: center; gap: 8px;}
-.sparkle { color: var(--accent-gold); }
-.btn-fermer-chat { background: transparent; border: none; color: white; font-size: 24px; line-height: 1; cursor: pointer; opacity: 0.7;}
-.btn-fermer-chat:hover { opacity: 1; }
-.chatbot-messages { flex-grow: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #fafcfa;}
-.chat-bulle { max-width: 80%; padding: 10px 15px; border-radius: 12px; font-size: 0.9em; line-height: 1.4; word-wrap: break-word;}
-.bulle-user { background: #e0e5e2; color: var(--text-main); align-self: flex-end; border-bottom-right-radius: 4px;}
-.bulle-ia { background: var(--accent-gold); color: #2c3e35; align-self: flex-start; border-bottom-left-radius: 4px; font-weight: 500;}
-.chatbot-input-area { padding: 15px; background: white; border-top: 1px solid var(--border-light); display: flex; gap: 10px;}
-.chatbot-input-area input { flex-grow: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid var(--border-light); outline: none;}
-.chatbot-input-area input:focus { border-color: var(--accent-gold); }
-.btn-send { width: 40px; height: 40px; border-radius: 50%; background: var(--bg-sidebar); color: var(--accent-gold); border: none; cursor: pointer; display: flex; justify-content: center; align-items: center; font-size: 1.2em;}
-.btn-send:disabled, .chatbot-input-area input:disabled { opacity: 0.5; cursor: not-allowed;}
+/* MODALES */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(19, 27, 22, 0.4); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 1000;}
-.modal { background: white; padding: 35px; border-radius: 12px; width: 420px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); border: 1px solid var(--border-light); max-height: 90vh; overflow-y: auto; box-sizing: border-box;}
+.modal { background: white; padding: 35px; border-radius: 12px; width: 420px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); border: 1px solid var(--border-light); max-height: 90vh; overflow-y: auto;}
 .modal-large { width: 600px; } 
 .modal h3 { font-family: 'Cinzel Decorative', serif; color: var(--text-main); margin: 0 0 5px 0; font-size: 1.5em;}
 .modal-desc { color: var(--text-muted); font-size: 0.9em; margin-bottom: 25px;}
@@ -1158,6 +1415,7 @@ input:focus, select:focus { border-color: var(--accent-gold); outline: none; bac
 .actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 30px; }
 .btn-cancel { background: transparent; color: var(--text-muted); padding: 10px 16px; border: 1px solid var(--border-light); border-radius: 6px; cursor: pointer; font-weight: 500;}
 .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .liste-gestion-plantes { display: flex; flex-direction: column; gap: 10px; }
 .item-gestion { display: flex; justify-content: space-between; align-items: center; background: #fafcfa; border: 1px solid var(--border-light); padding: 10px 15px; border-radius: 8px;}
 .item-info { display: flex; align-items: center; gap: 10px; font-weight: 500;}
@@ -1172,7 +1430,6 @@ input[type="month"].input-date-petit { width: auto; padding: 6px; font-size: 0.8
    MEDIA QUERIES (MOBILE RESPONSIVE)
    ========================================== */
 @media (max-width: 768px) {
-  /* Layout et Navigation */
   .layout { flex-direction: column; }
   .btn-hamburger { display: block; }
   .sidebar { position: fixed; top: 0; left: -100%; height: 100vh; width: 280px; box-shadow: 5px 0 15px rgba(0,0,0,0.5); overflow-y: auto; }
@@ -1191,15 +1448,14 @@ input[type="month"].input-date-petit { width: auto; padding: 6px; font-size: 0.8
 
   .stats-dashboard { flex-direction: column; }
 
-  .hud-top { top: 70px; left: 10px; right: 10px; }
-  .panneau-outils { flex-wrap: wrap; justify-content: center; gap: 8px;}
-  .btn-outil { padding: 6px 10px; font-size: 0.8em; }
+  .toolbar-vertical { top: 70px; left: 10px; right: 10px; flex-direction: row; flex-wrap: wrap; justify-content: center; width: auto; padding: 6px; gap: 4px; }
+  .btn-tool-v { width: 38px; height: 38px; font-size: 1.2em; }
+  .separateur-v { width: 2px; height: 24px; margin: auto 4px; }
 
   .carte-actions { opacity: 1; }
   .flex-col-mobile { flex-direction: column; width: 100%; }
   .full-width-mobile { width: 100%; }
 
-  /* Modales */
   .modal { padding: 20px; width: 95%; max-width: 400px; }
   .form-row { flex-direction: column; gap: 10px; }
   
