@@ -1,0 +1,12 @@
+{
+  "geminiKey": "",
+  "geminiModel": "",
+  "geminiConnected": false,
+  "webhookUrl": "",
+  "webhookArrosage": true,
+  "webhookPluie": true,
+  "webhookHeure": "10:00",
+  "ville": "Dourdain",
+  "pays": "",
+  "lastWebhookDate": ""
+}

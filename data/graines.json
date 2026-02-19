@@ -1,0 +1,11 @@
+[
+  {
+    "id": 1771481242467,
+    "nom": "Oignons",
+    "type": "Légume-fruit",
+    "icone": "🧅",
+    "sol": "",
+    "arrosage": 7,
+    "en_possession": true
+  }
+]
