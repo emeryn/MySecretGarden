@@ -13,7 +13,7 @@
 
 **My Secret Garden** est une application web complète conçue pour accompagner les jardiniers, du débutant à l'expert, dans la gestion de leur potager.
 
-Elle combine une interface visuelle riche pour planifier vos cultures sur un **plan infini**, une base de données détaillée pour vos semences, et des fonctionnalités intelligentes comme des **alertes d'arrosage**, des conseils de **compagnonnage végétal**, et un **assistant IA intégré** capable d'agir directement sur votre jardin.
+Elle combine une interface visuelle riche pour planifier vos cultures sur un **plan infini**, une base de données détaillée pour vos semences, et des fonctionnalités intelligentes comme des **alertes d'arrosage**, ainsi que des conseils de **compagnonnage végétal**.
 
 L'application est pensée pour être utilisée aussi bien sur grand écran que sur mobile directement au jardin.
 
@@ -29,7 +29,6 @@ L'application est pensée pour être utilisée aussi bien sur grand écran que s
 * **Plantation Visuelle :** Remplissez vos bacs avec des plantes dont les icônes s'affichent sur une grille dynamique.
 
 ### 🧠 Intelligence et Assistance
-* **Assistant IA Gemini :** Chatbot intégré. Demandez-lui des conseils, et il peut automatiquement ajouter des graines à votre inventaire ou dessiner des bacs sur le plan pour vous !
 * **Compagnonnage Végétal :** Base de données d'associations. L'application vous avertit visuellement (⚠️) si vous placez des plantes ennemies dans le même bac.
 * **Alertes d'Arrosage Intelligentes :** Calcul automatique des besoins en eau par bac, basé sur la plante la plus exigeante et le dernier arrosage.
 
@@ -43,15 +42,14 @@ L'application est pensée pour être utilisée aussi bien sur grand écran que s
 ## 🛠 Démarrage rapide
 
 ```
-docker run -p 8000:8000 -v ./data:/app/data/ emeryn/mysecretgarden:v1.0
+docker run -p 8000:8000 -v ./data:/app/data/ emeryn/mysecretgarden:latest
 ```
 
 ### Configuration dans l'Application
 
-Une fois l'application lancée, rendez-vous dans l'onglet **⚙️ Réglages & IA** :
+Une fois l'application lancée, rendez-vous dans l'onglet **⚙️ Réglages** :
 
 1.  **Localisation :** Entrez votre Ville et Pays pour activer le widget météo.
-2.  **IA Gemini :** Entrez votre clé API Google Gemini pour activer le chatbot.
 3.  **Discord :** Entrez l'URL de votre Webhook Discord et l'heure souhaitée pour les alertes automatiques.
 
 ---
