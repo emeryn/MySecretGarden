@@ -5,13 +5,6 @@
   <p>
     <strong>Votre assistant de jardinage personnel, interactif et intelligent.</strong>
   </p>
-
-  <p>
-    <a href="#-fonctionnalités-clés">Fonctionnalités</a> •
-    <a href="#-stack-technique">Stack Technique</a> •
-    <a href="#%EF%B8%8F-installation-et-configuration">Installation</a> •
-    <a href="#-utilisation">Utilisation</a>
-  </p>
 </div>
 
 ---
