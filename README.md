@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./frontend/src/assets/logo.png" alt="Logo My Secret Garden" width="180" style="margin-bottom: 20px;"/>
+  <img src="./frontend/src/assets/logo.png" alt="Logo My Secret Garden" width="240" style="margin-bottom: 20px;"/>
   <h1>🍑 My Secret Garden</h1>
 
   <p>
@@ -75,4 +75,13 @@ Une fois l'application lancée, rendez-vous dans l'onglet **⚙️ Réglages & I
 
 <div align="center">
   <p>Fait avec ❤️ et beaucoup de 🍑 pour les amoureux du jardinage.</p>
+</div>
+
+
+<div align="center">
+  <img src="./img/SCREEN1.png" alt="SCREEN1" width="80%" style="margin-bottom: 20px;"/>
+  <img src="./img/SCREEN2.png" alt="SCREEN2" width="80%" style="margin-bottom: 20px;"/>
+  <img src="./img/SCREEN3.png" alt="SCREEN3" width="80%" style="margin-bottom: 20px;"/>
+  <img src="./img/SCREEN4.png" alt="SCREEN4" width="80%" style="margin-bottom: 20px;"/>
+
 </div>
