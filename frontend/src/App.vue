@@ -1,8 +1,7 @@
 <template>
   <div class="layout">
-    <nav :class="['sidebar', { reduit: menuReduit }]">
-      <button class="btn-toggle-menu hide-on-mobile" @click="menuReduit = !menuReduit">{{ menuReduit ? '›' : '‹' }}</button>
-      <button class="btn-close-mobile show-on-mobile" @click="menuMobileOuvert = false">×</button>
+    <nav :class="['sidebar', { reduit: menuReduit, 'mobile-open': menuMobileOuvert }]">      <button class="btn-toggle-menu hide-on-mobile" @click="menuReduit = !menuReduit">{{ menuReduit ? '›' : '‹' }}</button>
+      <button class="btn-close-mobile" @click="menuMobileOuvert = false">×</button>
 
       <div class="logo-container" :class="{ 'logo-reduit': menuReduit }">
         <img :src="logoImg" alt="My Secret Garden Logo" class="logo-img" />
@@ -49,7 +48,7 @@
       </div>
     </nav>
     
-    <button class="btn-hamburger show-on-mobile" @click="menuMobileOuvert = true">☰</button>
+    <button class="btn-hamburger" @click="menuMobileOuvert = true">☰</button>
     <div v-if="menuMobileOuvert" class="mobile-overlay" @click="menuMobileOuvert = false"></div>
 
     <main class="content">
@@ -70,12 +69,12 @@
             <div class="separateur-v"></div>
             
             <button class="btn-tool-v arrosoir-global-btn" @click="declencherArrosageGlobal" title="Arroser tout le potager">🚿</button>
-            <div class="separateur-v hide-on-mobile-small"></div>
+            <div class="separateur-v"></div>
 
-            <button class="btn-tool-v hide-on-mobile-small" @click="zoomer(0.1)" title="Zoomer">➕</button>
-            <span class="zoom-text-v hide-on-mobile-small">{{ Math.round(zoom * 100) }}%</span>
-            <button class="btn-tool-v hide-on-mobile-small" @click="zoomer(-0.1)" title="Dézoomer">➖</button>
-            <button class="btn-tool-v hide-on-mobile-small" @click="recentrerTerrain" title="Retourner au centre">⌖</button>
+            <button class="btn-tool-v" @click="zoomer(0.1)" title="Zoomer">➕</button>
+            <span class="zoom-text-v">{{ Math.round(zoom * 100) }}%</span>
+            <button class="btn-tool-v" @click="zoomer(-0.1)" title="Dézoomer">➖</button>
+            <button class="btn-tool-v" @click="recentrerTerrain" title="Retourner au centre">⌖</button>
             <div class="separateur-v"></div>
 
             <button :class="['btn-tool-v', 'btn-saison-v', saisonActive]" @click="basculerSaison" title="Bascule Été/Hiver">
@@ -898,14 +897,17 @@ const grainesFiltrees = computed(() => {
 });
 
 const afficherModalGodet = ref(false); const modeEditionGodet = ref(false); const nouveauGodet = ref({ id_graine: '', quantite: 1, emplacement: '' });
-function ouvrirModalAjoutGodet(g = null) { if (g) { modeEditionGodet.value = true; nouveauGodet.value = { ...g }; } else { modeEditionGodet.value = false; nouveauGodet.value = { id_graine: '', quantite: 1, emplacement: '' }; } afficherModalGodet.value = true; };
-function validerAjoutGodet() { if (modeEditionGodet.value) { const index = godets.value.findIndex(g => g.id === nouveauGodet.value.id); if (index !== -1) godets.value[index] = { ...nouveauGodet.value }; } else { godets.value.push({ id: Date.now(), ...nouveauGodet.value }); } afficherModalGodet.value = false; };
-function supprimerGodet(id) {
+function ouvrirModalAjoutGodet(g = null) { if (g) { modeEditionGodet.value = true; nouveauGodet.value = { ...g }; } else { modeEditionGodet.value = false; nouveauGodet.value = { id_graine: '', quantite: 1, emplacement: '' }; } afficherModalGodet.value = true; }
+function validerAjoutGodet() { if (modeEditionGodet.value) { const index = godets.value.findIndex(g => g.id === nouveauGodet.value.id); if (index !== -1) godets.value[index] = { ...nouveauGodet.value }; } else { godets.value.push({ id: Date.now(), ...nouveauGodet.value }); } afficherModalGodet.value = false; }
+
+// --- UPDATED: Suppression Godet avec Modale ---
+function supprimerGodet(id) { 
   demanderConfirmation("Confirmez-vous le repiquage ou la suppression de ce godet ?", () => {
     godets.value = godets.value.filter(g => g.id !== id);
   });
 }
-function estEnGodet(idGraine) { return (godets.value || []).some(g => g.id_graine === idGraine); };
+
+function estEnGodet(idGraine) { return (godets.value || []).some(g => g.id_graine === idGraine); }
 const godetsAffichables = computed(() => { if (!godets.value) return []; return godets.value.map(godet => { const graine = (grainotheque.value || []).find(g => g.id === godet.id_graine) || { nom: 'Graine supprimée', icone: '❓', type: 'Inconnu' }; return { ...godet, nom: graine.nom, icone: graine.icone, type: graine.type }; }).reverse(); });
 const totalGodetsCultives = computed(() => (godets.value || []).reduce((acc, g) => acc + g.quantite, 0));
 
@@ -1031,7 +1033,22 @@ async function testerWebhookDiscord() {
 
 const zoom = ref(1); function zoomer(delta) { zoom.value = Math.min(Math.max(0.2, zoom.value + delta), 3); } function gererZoom(e) { if (e.deltaY < 0) zoomer(0.05); else zoomer(-0.05); }
 
-const outilActif = ref('main'); const terrainRef = ref(null); const pan = ref({ x: 0, y: 0 }); const isPanning = ref(false); const lastMousePos = ref({ x: 0, y: 0 }); const enTrainDeDessiner = ref(false); const pointDepart = ref({ x: 0, y: 0 }); const parcelleEnCours = ref(null); const draggedParcelle = ref(null); const resizingParcelle = ref(null); const dragOffset = ref({ x: 0, y: 0 }); const pixelsParMetre = 40; const pixelsPar10cm = 4;
+const outilActif = ref('main'); 
+const terrainRef = ref(null); 
+const pan = ref({ x: 0, y: 0 }); 
+const isPanning = ref(false); 
+const lastMousePos = ref({ x: 0, y: 0 }); 
+const enTrainDeDessiner = ref(false); 
+const pointDepart = ref({ x: 0, y: 0 }); 
+const parcelleEnCours = ref(null); 
+const draggedParcelle = ref(null); 
+const resizingParcelle = ref(null); 
+const dragOffset = ref({ x: 0, y: 0 }); 
+const pixelsParMetre = 40; 
+const pixelsPar10cm = 4;
+
+const initialPinchDistance = ref(null);
+const initialPinchZoom = ref(1);
 
 function styleTerrainElement(p) { 
   if (p.type === 'bordure') {
@@ -1056,6 +1073,7 @@ function styleTooltip(p) {
 function recentrerTerrain() { pan.value = { x: 0, y: 0 }; zoom.value = 1; } 
 function allerAuBac(bac) { if(!bac) return; pan.value = { x: -bac.x + (window.innerWidth/2) - 140, y: -bac.y + (window.innerHeight/2) }; zoom.value = 1.2; vueActive.value = 'potager'; menuMobileOuvert.value = false; }
 
+// --- UPDATED : Suppression d'un bac/element de terrain avec Modale ---
 function supprimerParcelle(id) { 
   demanderConfirmation("Voulez-vous vraiment supprimer cet élément du terrain ?", () => {
     parcelles.value = parcelles.value.filter(p => p.id !== id); 
@@ -1070,9 +1088,26 @@ const nouvelleCibleCoords = ref({x: 0, y: 0});
 const nouvelArbre = ref({ nom: '', taille: 'Moyen' });
 const nouvelleDeco = ref({ icone: '' });
 
-function getEvtCoords(e) { if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY }; return { x: e.clientX, y: e.clientY }; }
+function getEvtCoords(e) { 
+  if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY }; 
+  return { x: e.clientX, y: e.clientY }; 
+}
 
 function commencerAction(e) { 
+  // GESTION PINCH-TO-ZOOM MOBILE (2 doigts)
+  if (e.touches && e.touches.length === 2) {
+    const t1 = e.touches[0];
+    const t2 = e.touches[1];
+    initialPinchDistance.value = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+    initialPinchZoom.value = zoom.value;
+    isPanning.value = false;
+    enTrainDeDessiner.value = false;
+    parcelleEnCours.value = null;
+    draggedParcelle.value = null;
+    resizingParcelle.value = null;
+    return;
+  }
+
   const coords = getEvtCoords(e); 
   const rect = terrainRef.value.getBoundingClientRect(); 
   const rawX = (coords.x - rect.left) / zoom.value;
@@ -1148,6 +1183,26 @@ function commencerResize(e, p) {
 }
 
 function actionEnCours(e) { 
+  // GESTION PINCH-TO-ZOOM
+  if (e.touches && e.touches.length === 2) {
+    if (initialPinchDistance.value) {
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const currentDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+      const ratio = currentDist / initialPinchDistance.value;
+      zoom.value = Math.min(Math.max(0.2, initialPinchZoom.value * ratio), 3);
+    }
+    return;
+  }
+  
+  // Anti-saut si on lâche un doigt
+  if (initialPinchDistance.value && e.touches && e.touches.length === 1) {
+    lastMousePos.value = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    initialPinchDistance.value = null;
+    if (outilActif.value === 'main') isPanning.value = true;
+    return;
+  }
+
   const coords = getEvtCoords(e); 
   const rect = terrainRef.value.getBoundingClientRect(); 
   let mouseX = (coords.x - rect.left) / zoom.value; 
@@ -1210,7 +1265,12 @@ function actionEnCours(e) {
 }
 
 function terminerAction() { 
-  isPanning.value = false; draggedParcelle.value = null; resizingParcelle.value = null; resizeBordureTarget.value = null;
+  isPanning.value = false; 
+  draggedParcelle.value = null; 
+  resizingParcelle.value = null; 
+  resizeBordureTarget.value = null;
+  initialPinchDistance.value = null;
+
   if (enTrainDeDessiner.value) { 
     enTrainDeDessiner.value = false; 
     if (parcelleEnCours.value.type === 'bordure') {
@@ -1227,6 +1287,8 @@ function terminerAction() {
 const afficherModal = ref(false); const modeEdition = ref(false); const graineParDefaut = { id: null, nom: '', type: 'Légume-fruit', icone: '🌱', sol: '', arrosage: 7, godet_debut: '', godet_fin: '', plantation_debut: '', plantation_fin: '', recolte_debut: '', recolte_fin: '', en_possession: true }; const nouvelleGraine = ref({ ...graineParDefaut }); 
 function ouvrirModalGraine(g = null) { if (g) { modeEdition.value = true; nouvelleGraine.value = { ...g }; } else { modeEdition.value = false; nouvelleGraine.value = { ...graineParDefaut }; } afficherModal.value = true; }
 function sauvegarderGraine() { if (modeEdition.value) { const index = grainotheque.value.findIndex(g => g.id === nouvelleGraine.value.id); if (index !== -1) grainotheque.value[index] = { ...nouvelleGraine.value }; } else { nouvelleGraine.value.id = Date.now(); if(!grainotheque.value) grainotheque.value = []; grainotheque.value.push({ ...nouvelleGraine.value }); } afficherModal.value = false; }
+
+// --- UPDATED : Suppression de Graine avec Modale ---
 function supprimerGraine(id) { 
   demanderConfirmation("Supprimer cette variété de l'encyclopédie ? (Vos godets existants ne seront pas impactés)", () => {
     grainotheque.value = grainotheque.value.filter(g => g.id !== id);
@@ -1241,6 +1303,7 @@ function validerPlantation() { if (parcelleSelectionnee.value && nouvellePlantat
 const afficherModalGestionBac = ref(false); const plantesEnGestion = ref([]); const parcelleEnGestion = ref(null); 
 function ouvrirModalGestionBac(parcelle) { parcelleEnGestion.value = parcelle; const saison = saisonActive.value === 'ete' ? 'plantations_ete' : 'plantations_hiver'; plantesEnGestion.value = parcelle[saison] || []; plantesEnGestion.value.forEach(p => { if(!p.date_plantation) p.date_plantation = getCurrentYearMonth(); }); afficherModalGestionBac.value = true; }
 
+// --- UPDATED : Retrait d'une plante du bac avec Modale ---
 function retirerPlanteDuBac(index) { 
   demanderConfirmation("Retirer cette plante du bac ? (Elle sera conservée dans l'historique des récoltes)", () => {
     const planteCible = plantesEnGestion.value[index];
@@ -1307,8 +1370,7 @@ body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-a
 .vue-scrollable { overflow-y: auto; padding: 40px; height: 100%; background: white; box-sizing: border-box;}
 
 /* MOBILE ELEMENTS */
-.btn-hamburger { display: none; position: fixed; top: 15px; left: 15px; z-index: 900; background: white; border: 1px solid var(--border-light); border-radius: 8px; font-size: 24px; padding: 5px 12px; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.1); color: var(--text-main);}
-.show-on-mobile { display: none; }
+.btn-hamburger { position: fixed; top: 15px; left: 15px; z-index: 900; background: white; border: 1px solid var(--border-light); border-radius: 8px; font-size: 24px; padding: 5px 12px; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.1); color: var(--text-main); display: none;}
 
 /* --- SIDEBAR --- */
 .sidebar { width: 280px; background: var(--bg-sidebar); color: white; padding: 30px 20px; flex-shrink: 0; z-index: 2000; display: flex; flex-direction: column; position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);}
@@ -1676,15 +1738,22 @@ input[type="month"].input-date-petit { width: auto; padding: 6px; font-size: 0.8
 /* ==========================================
    MEDIA QUERIES (MOBILE RESPONSIVE)
    ========================================== */
+/* ==========================================
+   MEDIA QUERIES (MOBILE RESPONSIVE)
+   ========================================== */
 @media (max-width: 768px) {
   .layout { flex-direction: column; }
-  .btn-hamburger { display: block; }
+  
+  /* CORRECTION ICI : On force l'affichage des éléments mobiles */
+  .btn-hamburger { display: block !important; }
+  .show-on-mobile { display: block !important; }
+  .hide-on-mobile { display: none !important; }
+  .hide-on-mobile-small { display: none !important; }
+
   .sidebar { position: fixed; top: 0; left: -100%; height: 100vh; width: 280px; box-shadow: 5px 0 15px rgba(0,0,0,0.5); overflow-y: auto; }
   .sidebar.mobile-open { left: 0; }
-  .btn-close-mobile { display: block; }
+  .btn-close-mobile { display: block !important; position: absolute; right: 15px; top: 15px; z-index: 2001; }
   .mobile-overlay { display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1999; }
-  .hide-on-mobile { display: none; }
-  .hide-on-mobile-small { display: none !important; }
 
   .vue-scrollable { padding: 80px 15px 20px 15px; } 
   .grid-reglages { grid-template-columns: 1fr; }
