@@ -16,7 +16,10 @@
           <span class="icone">❦</span> <span class="texte-menu" v-if="!menuReduit">La Grainothèque</span>
         </li>
         <li :class="{ actif: vueActive === 'godets' }" @click="changerVue('godets')" title="Mes Godets">
-          <span class="icone">🪴</span> <span class="texte-menu" v-if="!menuReduit">Mes Godets</span>
+          <span class="icone">🌱</span> <span class="texte-menu" v-if="!menuReduit">Mes Godets</span>
+        </li>
+        <li :class="{ actif: vueActive === 'pots' }" @click="changerVue('pots')" title="Plantes en pots">
+          <span class="icone">🪴</span> <span class="texte-menu" v-if="!menuReduit">Plantes en pots</span>
         </li>
         <li :class="{ actif: vueActive === 'conseils' }" @click="changerVue('conseils')" title="Associations">
           <span class="icone">🤝</span> <span class="texte-menu" v-if="!menuReduit">Associations</span>
@@ -38,12 +41,12 @@
       </ul>
       
       <div class="menu-bottom-actions">
-        <button v-if="alertesArrosage && alertesArrosage.length > 0" class="btn-arroser-tout" @click="declencherArrosageGlobal()" title="Arroser tous les bacs assoiffés">
-          <span class="icone">💦</span> <span v-if="!menuReduit">Tout arroser ({{ alertesArrosage.length }})</span>
+        <button v-if="totalAlertesArrosage > 0" class="btn-arroser-tout" @click="declencherArrosageGlobal()" title="Arroser tous les éléments assoiffés">
+          <span class="icone">💦</span> <span v-if="!menuReduit">Tout arroser ({{ totalAlertesArrosage }})</span>
         </button>
 
-        <button class="btn-ajouter-graine" @click="ouvrirModalGraine()" title="Ajouter une graine">
-          <span class="icone">+</span> <span v-if="!menuReduit">Nouvelle semence</span>
+        <button class="btn-ajouter-graine" @click="ouvrirModalGraine()" title="Ajouter une semence">
+          <span class="icone">+</span> <span v-if="!menuReduit">Nouveau végétal</span>
         </button>
       </div>
     </nav>
@@ -162,10 +165,10 @@
             <h2>Inventaire des semences</h2>
             <p class="sous-titre">Gérez vos variétés, leurs cycles, besoins en sol et péremptions.</p>
             <div class="legende-possession mt-15">
-              <span class="info-bulle">💡 <b>Astuce :</b> Vous pouvez ajouter n'importe quelle graine à l'encyclopédie. Cliquez sur le bouton <b>"🛒 À acheter"</b> ou <b>"📦 En stock"</b> d'une carte pour indiquer si vous la possédez physiquement.</span>
+              <span class="info-bulle">💡 <b>Astuce :</b> Vous pouvez ajouter n'importe quel végétal à l'encyclopédie. Précisez s'il s'agit d'une graine ou d'un plant déjà formé !</span>
             </div>
           </div>
-          <button class="btn-submit full-width mt-mobile" style="align-self: flex-start;" @click="ouvrirModalGraine()">+ Nouvelle semence</button>
+          <button class="btn-submit full-width mt-mobile" style="align-self: flex-start;" @click="ouvrirModalGraine()">+ Nouveau végétal</button>
         </header>
         
         <div class="workspace-graines">
@@ -180,12 +183,12 @@
                 <option v-for="t in typesPlantes" :key="t" :value="t">{{ t }}</option>
               </select>
             </div>
-            <div class="form-group toggle-group full-width mt-mobile" style="display: flex; align-items: center; padding-left: 10px;">
-              <label class="toggle-container">
-                <input type="checkbox" v-model="filtrePossession">
-                <span class="toggle-slider"></span>
-                <span class="toggle-label">En stock uniquement</span>
-              </label>
+            <div class="form-group select-group full-width mt-mobile">
+              <select v-model="filtreStock">
+                <option value="tous">Tous les états</option>
+                <option value="possede">📦 En stock</option>
+                <option value="acheter">🛒 À acheter</option>
+              </select>
             </div>
           </div>
 
@@ -205,12 +208,14 @@
                         <button :class="['badge-action-possession', { 'possede': graine.en_possession }]" @click.stop="graine.en_possession = !graine.en_possession">
                           {{ graine.en_possession ? '📦 En stock' : '🛒 À acheter' }}
                         </button>
-                        <span v-if="estEnGodet(graine.id)" class="badge-godet-actif">🪴 En godet</span>
+                        <span v-if="estEnGodet(graine.id)" class="badge-godet-actif">🌱 En godet</span>
                       </div>
                     </div>
                     <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
                       <span class="badge">{{ graine.type }}</span>
-                      <span v-if="estPerimee(graine.peremption)" class="badge badge-perime">⚠️ Périmée</span>
+                      <span :class="['badge', graine.est_plant ? 'badge-plant' : 'badge-seed']">{{ graine.est_plant ? '🌿 Plant' : '🌰 Graine' }}</span>
+                      
+                      <span v-if="estPerimee(graine.peremption)" class="badge badge-perime">⚠️ Périmé</span>
                       <span v-else-if="graine.peremption" class="badge badge-date">⏳ Exp: {{ formatMoisAnnee(graine.peremption) }}</span>
                     </div>
                   </div>
@@ -220,8 +225,8 @@
                     <p v-if="graine.sol" class="info-tag"><strong>Sol:</strong> {{ graine.sol }}</p>
                     <p v-if="graine.arrosage" class="info-tag"><strong>Eau:</strong> {{ getArrosageLabel(graine.arrosage) }}</p>
                   </div>
-                  <div class="ligne-saison" v-if="graine.godet_debut && graine.godet_fin"><span class="saison-icone">🪴</span><span class="saison-texte">Mise en godet : {{ graine.godet_debut.substring(0,3) }}. à {{ graine.godet_fin.substring(0,3) }}.</span></div>
-                  <div class="ligne-saison" v-if="graine.plantation_debut && graine.plantation_fin"><span class="saison-icone">🌱</span><span class="saison-texte">Pleine terre : {{ graine.plantation_debut.substring(0,3) }}. à {{ graine.plantation_fin.substring(0,3) }}.</span></div>
+                  <div class="ligne-saison" v-if="graine.godet_debut && graine.godet_fin"><span class="saison-icone">🌱</span><span class="saison-texte">Mise en godet : {{ graine.godet_debut.substring(0,3) }}. à {{ graine.godet_fin.substring(0,3) }}.</span></div>
+                  <div class="ligne-saison" v-if="graine.plantation_debut && graine.plantation_fin"><span class="saison-icone">🌿</span><span class="saison-texte">Pleine terre : {{ graine.plantation_debut.substring(0,3) }}. à {{ graine.plantation_fin.substring(0,3) }}.</span></div>
                   <div class="ligne-saison" v-if="graine.recolte_debut && graine.recolte_fin"><span class="saison-icone">🧺</span><span class="saison-texte">Récolte : {{ graine.recolte_debut.substring(0,3) }}. à {{ graine.recolte_fin.substring(0,3) }}.</span></div>
                 </div>
               </div>
@@ -229,7 +234,7 @@
             
             <div v-if="grainesFiltrees.length === 0" class="etat-vide pleine-largeur">
               <div class="etat-vide-icone">🔍</div>
-              <h3>Aucune semence ne correspond à votre recherche.</h3>
+              <h3>Aucun végétal ne correspond à votre recherche.</h3>
             </div>
           </div>
         </div>
@@ -246,7 +251,7 @@
 
         <div class="workspace-graines">
           <div v-if="!godetsAffichables || godetsAffichables.length === 0" class="etat-vide">
-            <div class="etat-vide-icone">🪴</div>
+            <div class="etat-vide-icone">🌱</div>
             <h3>Votre pouponnière est vide</h3>
           </div>
           <div class="grid-graines" v-else>
@@ -271,6 +276,111 @@
                   <div class="ligne-saison">
                     <span class="saison-icone">📍</span>
                     <span class="saison-texte"><strong>Emplacement :</strong> {{ godet.emplacement }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="vueActive === 'pots'" class="vue-pots vue-scrollable">
+        <header class="header-epure flex-between block-mobile">
+          <div>
+            <h2>Plantes en pots</h2>
+            <p class="sous-titre">Gérez vos plantes d'intérieur et d'extérieur.</p>
+          </div>
+          <button class="btn-submit full-width mt-mobile" @click="ouvrirModalPot()">+ Nouvelle plante</button>
+        </header>
+
+        <div class="workspace-graines">
+          <div class="filtres-bar block-mobile" v-if="pots && pots.length > 0">
+            <div class="form-group search-group full-width">
+              <span class="search-icon">🔍</span>
+              <input type="text" v-model="recherchePot" placeholder="Rechercher une plante en pot..." />
+            </div>
+          </div>
+
+          <div v-if="!pots || pots.length === 0" class="etat-vide">
+            <div class="etat-vide-icone">🪴</div>
+            <h3>Vous n'avez pas encore de plantes en pot</h3>
+          </div>
+          
+          <div v-else-if="potsInterieurFiltres.length === 0 && potsExterieurFiltres.length === 0" class="etat-vide">
+            <div class="etat-vide-icone">🔍</div>
+            <h3>Aucune plante ne correspond à votre recherche.</h3>
+          </div>
+
+          <div v-else>
+            <div v-if="potsInterieurFiltres.length > 0">
+              <h3 class="section-titre mt-15">🏠 Plantes d'Intérieur</h3>
+              <div class="grid-graines mb-30">
+                <div v-for="pot in potsInterieurFiltres" :key="pot.id" class="carte-graine carte-pot">
+                  <div class="carte-actions">
+                    <button class="btn-icon" @click="ouvrirModalPot(pot)" title="Modifier">✎</button>
+                    <button class="btn-icon rouge" @click="supprimerPot(pot.id)" title="Supprimer">×</button>
+                  </div>
+                  <div class="carte-contenu">
+                    <div class="carte-top align-center">
+                      <div class="icone-graine">{{ pot.icone }}</div>
+                      <div class="titre-graine flex-grow">
+                        <h3>{{ pot.nom }}</h3>
+                        <span class="badge badge-interieur">🏠 Intérieur</span>
+                      </div>
+                    </div>
+                    <div class="infos-agronomiques mt-15">
+                      <div class="ligne-saison" v-if="pot.emplacement">
+                        <span class="saison-icone">📍</span>
+                        <span class="saison-texte"><strong>Lieu :</strong> {{ pot.emplacement }}</span>
+                      </div>
+                      <div class="ligne-saison">
+                        <span class="saison-icone">💦</span>
+                        <span class="saison-texte"><strong>Eau :</strong> {{ getArrosageLabel(pot.arrosage) }}</span>
+                      </div>
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
+                        <div v-if="potBesoinEau(pot) && !pot.arrosageEnCours" class="badge badge-perime" style="display:flex; align-items:center; gap: 5px;">⚠️ Soif</div>
+                        <div v-else-if="pot.arrosageEnCours" style="color: #0288d1; font-weight: bold; font-size: 0.9em;">Arrosage en cours... 💧</div>
+                        <div v-else style="color: #388e3c; font-size: 0.9em;">Hydratée ✓</div>
+                        <button class="btn-arroser-petit" @click="arroserPot(pot)" title="J'ai arrosé">💦 Arroser</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="potsExterieurFiltres.length > 0">
+              <h3 class="section-titre mt-15">☀️ Plantes d'Extérieur</h3>
+              <div class="grid-graines mb-30">
+                <div v-for="pot in potsExterieurFiltres" :key="pot.id" class="carte-graine carte-pot-ext">
+                  <div class="carte-actions">
+                    <button class="btn-icon" @click="ouvrirModalPot(pot)" title="Modifier">✎</button>
+                    <button class="btn-icon rouge" @click="supprimerPot(pot.id)" title="Supprimer">×</button>
+                  </div>
+                  <div class="carte-contenu">
+                    <div class="carte-top align-center">
+                      <div class="icone-graine">{{ pot.icone }}</div>
+                      <div class="titre-graine flex-grow">
+                        <h3>{{ pot.nom }}</h3>
+                        <span class="badge badge-exterieur">☀️ Extérieur</span>
+                      </div>
+                    </div>
+                    <div class="infos-agronomiques mt-15">
+                      <div class="ligne-saison" v-if="pot.emplacement">
+                        <span class="saison-icone">📍</span>
+                        <span class="saison-texte"><strong>Lieu :</strong> {{ pot.emplacement }}</span>
+                      </div>
+                      <div class="ligne-saison">
+                        <span class="saison-icone">💦</span>
+                        <span class="saison-texte"><strong>Eau :</strong> {{ getArrosageLabel(pot.arrosage) }}</span>
+                      </div>
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
+                        <div v-if="potBesoinEau(pot) && !pot.arrosageEnCours" class="badge badge-perime" style="display:flex; align-items:center; gap: 5px;">⚠️ Soif</div>
+                        <div v-else-if="pot.arrosageEnCours" style="color: #0288d1; font-weight: bold; font-size: 0.9em;">Arrosage en cours... 💧</div>
+                        <div v-else style="color: #388e3c; font-size: 0.9em;">Hydratée ✓</div>
+                        <button class="btn-arroser-petit" @click="arroserPot(pot)" title="J'ai arrosé">💦 Arroser</button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -394,7 +504,7 @@
             <h2>Centre de Notifications</h2>
             <p class="sous-titre">Gérez les alertes de votre potager.</p>
           </div>
-          <button v-if="alertesArrosage.length > 0" class="btn-arroser-petit full-width mt-mobile" @click="declencherArrosageGlobal()">💦 Tout arroser</button>
+          <button v-if="totalAlertesArrosage > 0" class="btn-arroser-petit full-width mt-mobile" @click="declencherArrosageGlobal()">💦 Tout arroser</button>
         </header>
 
         <div v-if="totalAlertes === 0" class="etat-vide">
@@ -413,6 +523,20 @@
                   <span class="arrosage-sous-texte">Dernier arrosage il y a {{ alerte.joursDepuis }} jour(s).</span>
                 </div>
                 <button class="btn-arroser-petit full-width" @click="arroserBac(alerte.bac); allerAuBac(alerte.bac);">J'ai arrosé</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="alertes-container arrosage-container" v-if="alertesArrosagePots.length > 0">
+            <h3><span class="icone-h3">🪴</span> Plantes en pots assoiffées</h3>
+            <div class="liste-alertes">
+              <div v-for="alerte in alertesArrosagePots" :key="'pot'+alerte.id" class="alerte-item arrosage block-mobile" style="border-left-color: #8d6e63;">
+                <div class="alerte-icone hide-on-mobile-small">{{ alerte.icone }}</div>
+                <div class="alerte-texte">
+                  <strong>{{ alerte.nom }}</strong> ({{ alerte.emplacement }}) a soif !
+                  <span class="arrosage-sous-texte">Dernier arrosage il y a {{ alerte.joursDepuis }} jour(s).</span>
+                </div>
+                <button class="btn-arroser-petit full-width" style="background: #8d6e63;" @click="arroserPot(alerte.pot);">J'ai arrosé</button>
               </div>
             </div>
           </div>
@@ -473,11 +597,13 @@
 
         <div class="stats-dashboard mt-30 block-mobile">
           <div class="stat-box full-width"><span class="stat-valeur">{{ totalPlantsCultives }}</span><span class="stat-label">Plants en terre</span></div>
-          <div class="stat-box full-width"><span class="stat-valeur">{{ totalGodetsCultives }}</span><span class="stat-label">Plants en godets</span></div>
+          <div class="stat-box full-width"><span class="stat-valeur">{{ totalGodetsCultives }}</span><span class="stat-label">Semis en godets</span></div>
+          <div class="stat-box full-width"><span class="stat-valeur">{{ pots ? pots.length : 0 }}</span><span class="stat-label">Plantes en pots</span></div>
           <div class="stat-box full-width"><span class="stat-valeur">{{ bacsUtilises }} / {{ bacsTotal }}</span><span class="stat-label">Bacs potagers ({{ saisonActive }})</span></div>
         </div>
 
-        <div class="workspace-graines">
+        <h3 class="section-titre mt-30">Récapitulatif des cultures</h3>
+        <div class="workspace-graines mb-30">
           <div v-if="culturesPlantees.length === 0" class="etat-vide"><div class="etat-vide-icone">🪴</div><h3>Votre potager est vierge pour cette saison.</h3></div>
           <div class="grid-graines" v-else>
             <div v-for="culture in culturesPlantees" :key="culture.id" class="carte-graine carte-recap">
@@ -491,6 +617,23 @@
             </div>
           </div>
         </div>
+
+        <h3 class="section-titre mt-30" v-if="pots && pots.length > 0">Récapitulatif des pots</h3>
+        <div class="workspace-graines mb-30" v-if="pots && pots.length > 0">
+          <div class="grid-graines">
+            <div v-for="pot in pots" :key="'recap'+pot.id" class="carte-graine carte-recap">
+              <div class="carte-contenu">
+                <div class="carte-top align-center">
+                  <div class="icone-graine-petit">{{ pot.icone }}</div>
+                  <div class="titre-graine flex-grow"><h3>{{ pot.nom }}</h3>
+                    <span :class="['badge', pot.environnement === 'Interieur' ? 'badge-interieur' : 'badge-exterieur']" style="margin-top:5px;">{{ pot.environnement === 'Interieur' ? '🏠 Intérieur' : '☀️ Extérieur' }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <div v-if="vueActive === 'reglages'" class="vue-reglages vue-scrollable">
@@ -543,7 +686,7 @@
 
     <div v-if="afficherModalArbre" class="modal-overlay" @click.self="afficherModalArbre = false">
       <div class="modal">
-        <h3>Placer un objet 🏡</h3>
+        <h3>Placer un arbre 🌳</h3>
         <form @submit.prevent="validerAjoutArbre">
           <div class="form-group">
             <label>Taille de l'arbre sur la carte</label>
@@ -581,7 +724,7 @@
 
     <div v-if="afficherModal" class="modal-overlay" @click.self="afficherModal = false">
       <div class="modal modal-large">
-        <h3>{{ modeEdition ? 'Modifier la semence' : 'Ajouter une semence' }}</h3>
+        <h3>{{ modeEdition ? 'Modifier le végétal' : 'Ajouter un végétal' }}</h3>
         <form @submit.prevent="sauvegarderGraine">
           <div class="form-row block-mobile"><div class="form-group icone-selector-container full-width"><label>Icône</label><div class="icone-selector"><span v-for="ico in listeIcones" :key="ico" :class="['ico-choix', { 'ico-actif': nouvelleGraine.icone === ico }]" @click="nouvelleGraine.icone = ico">{{ ico }}</span></div></div><div class="form-group flex-grow full-width"><label>Nom de la variété *</label><input v-model="nouvelleGraine.nom" required /></div></div>
           
@@ -592,20 +735,26 @@
           </div>
           
           <div class="form-row block-mobile">
-            <div class="form-group flex-grow full-width">
-              <label class="toggle-container mt-15">
+            <div class="form-group flex-grow full-width" style="display:flex; flex-direction: column; justify-content: center;">
+              <label class="toggle-container">
                 <input type="checkbox" v-model="nouvelleGraine.en_possession">
                 <span class="toggle-slider"></span>
-                <span class="toggle-label">Je possède cette graine en stock</span>
+                <span class="toggle-label">Je l'ai en stock (Sinon "À acheter")</span>
+              </label>
+              <label class="toggle-container mt-15">
+                <input type="checkbox" v-model="nouvelleGraine.est_plant">
+                <span class="toggle-slider"></span>
+                <span class="toggle-label">C'est un plant (Pas une graine)</span>
               </label>
             </div>
+            
             <div class="form-group third full-width">
               <label>Date de péremption (Optionnelle)</label>
               <input type="month" v-model="nouvelleGraine.peremption" title="Mois/Année limite d'utilisation" />
             </div>
           </div>
 
-          <div class="form-row block-mobile">
+          <div class="form-row block-mobile mt-15">
             <div class="form-group third full-width"><label>Début (Godet)</label><select v-model="nouvelleGraine.godet_debut"><option value="">-- Mois --</option><option v-for="m in mois" :key="'gd'+m" :value="m">{{m}}</option></select></div>
             <div class="form-group third full-width"><label>Début (Terre)</label><select v-model="nouvelleGraine.plantation_debut"><option value="">-- Mois --</option><option v-for="m in mois" :key="'ps'+m" :value="m">{{m}}</option></select></div>
             <div class="form-group third full-width"><label>Début Récolte</label><select v-model="nouvelleGraine.recolte_debut"><option value="">-- Mois --</option><option v-for="m in mois" :key="'rs'+m" :value="m">{{m}}</option></select></div>
@@ -636,6 +785,53 @@
           <div class="actions block-mobile">
             <button type="button" class="btn-cancel full-width" @click="afficherModalGodet = false">Annuler</button>
             <button type="submit" class="btn-submit full-width" :disabled="!grainotheque || grainotheque.length === 0">{{ modeEditionGodet ? 'Mettre à jour' : 'Semer' }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div v-if="afficherModalPot" class="modal-overlay" @click.self="afficherModalPot = false">
+      <div class="modal modal-large">
+        <h3>{{ modeEditionPot ? 'Modifier ce pot' : 'Ajouter une plante en pot' }}</h3>
+        <form @submit.prevent="validerAjoutPot">
+          
+          <div class="form-row block-mobile">
+            <div class="form-group icone-selector-container full-width">
+              <label>Icône</label>
+              <div class="icone-selector">
+                <span v-for="ico in listeIconesPots" :key="ico" :class="['ico-choix', { 'ico-actif': nouveauPot.icone === ico }]" @click="nouveauPot.icone = ico">{{ ico }}</span>
+              </div>
+            </div>
+            <div class="form-group flex-grow full-width">
+              <label>Nom de la plante *</label>
+              <input v-model="nouveauPot.nom" required placeholder="Ex: Ficus, Menthe, Monstera..." />
+            </div>
+          </div>
+
+          <div class="form-row block-mobile">
+            <div class="form-group half full-width">
+              <label>Environnement *</label>
+              <select v-model="nouveauPot.environnement" required>
+                <option value="Interieur">🏠 Intérieur</option>
+                <option value="Exterieur">☀️ Extérieur</option>
+              </select>
+            </div>
+            <div class="form-group half full-width">
+              <label>Besoin en eau *</label>
+              <select v-model="nouveauPot.arrosage" required>
+                <option v-for="freq in optionsArrosage" :key="freq.val" :value="freq.val">{{ freq.label }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group mt-15">
+            <label>Emplacement exact (Optionnel)</label>
+            <input type="text" v-model="nouveauPot.emplacement" placeholder="Ex: Salon, Véranda, Bord de fenêtre..." />
+          </div>
+
+          <div class="actions block-mobile mt-30">
+            <button type="button" class="btn-cancel full-width" @click="afficherModalPot = false">Annuler</button>
+            <button type="submit" class="btn-submit full-width">{{ modeEditionPot ? 'Mettre à jour' : 'Ajouter le pot' }}</button>
           </div>
         </form>
       </div>
@@ -718,6 +914,7 @@ const menuMobileOuvert = ref(false)
 const parcelles = ref([])
 const grainotheque = ref([])
 const godets = ref([]) 
+const pots = ref([])
 
 const afficherConfirm = ref(false);
 const confirmMessage = ref('');
@@ -744,6 +941,7 @@ const typesSols = ['Argileux (Lourd)', 'Sableux (Léger)', 'Limoneux (Riche)', '
 const mois = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 const listeIcones = ['🌱','🌿','🍅','🥕','🥔','🥬','🧅','🧄','🥦','🥒','🍆','🌶️','🌽','🍓','🍈','🍉','🎃','🌼','🌻','🪻']
 const listeDecos = ['🪑', '🪣', '🦆', '🦔', '🐝', '🐌', '🦉', '🦋', '🐈', '🐸', '🪵', '⛲', '🪨', '🍄', '🛒', '🚲']
+const listeIconesPots = ['🪴', '🌵', '🌴', '🌲', '🌳', '🌿', '☘️', '🍀', '🍃', '🌸', '🌼', '🪻', '🌻', '🌺', '🌹', '🌾', '🍋', '🍅', '🌶️']
 
 const centreTerrain = 5000;
 const backendUrl = ""; 
@@ -754,25 +952,30 @@ onMounted(() => {
   link.href = "data:image/svg+xml," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍑</text></svg>");
 });
 
-const optionsArrosage = [{ label: 'Tous les jours (1j)', val: 1 }, { label: 'Tous les 2 jours (2j)', val: 2 }, { label: 'Tous les 3 jours (3j)', val: 3 }, { label: '1 fois par semaine (7j)', val: 7 }, { label: '1 fois toutes les 2 semaines (14j)', val: 14 }];
+const optionsArrosage = [
+  { label: 'Tous les jours (1j)', val: 1 }, 
+  { label: 'Tous les 2 jours (2j)', val: 2 }, 
+  { label: 'Tous les 3 jours (3j)', val: 3 }, 
+  { label: '1 fois par semaine (7j)', val: 7 }, 
+  { label: '1 fois toutes les 2 semaines (14j)', val: 14 },
+  { label: '1 fois par mois (30j)', val: 30 }
+];
 const getArrosageLabel = (val) => { const opt = optionsArrosage.find(o => o.val === val); return opt ? opt.label : val + 'j'; }
 const getCurrentYearMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
 
-const formatMoisAnnee = (yyyymm) => { 
+function formatMoisAnnee(yyyymm) { 
   if (!yyyymm) return 'Date inconnue'; 
   const parts = yyyymm.split('-'); 
   if(parts.length < 2) return 'Date inconnue';
   return `${mois[parseInt(parts[1], 10) - 1]} ${parts[0]}`; 
-};
+}
 
-// --- NOUVEAU: LOGIQUE PEREMPTION ---
 function estPerimee(peremptionStr) {
   if (!peremptionStr) return false;
   const today = new Date();
   const currentYearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-  return peremptionStr < currentYearMonth; // Comparaison YYYY-MM
+  return peremptionStr < currentYearMonth;
 }
-// -----------------------------------
 
 const dbAssociations = [
   { plante: "Ail", fav: ["betterave", "carotte", "chou", "fraise", "laitue", "tomate"], defav: ["asperge", "haricot", "persil", "pois", "poireau", "pomme de terre"] },
@@ -891,14 +1094,14 @@ const analyseAssociation = computed(() => {
   return { fav: [...new Set(favs)], defav: [...new Set(defavs)] }; 
 });
 
-const rechercheGraine = ref(''); const filtreTypeGraine = ref(''); const filtrePossession = ref(false); 
+const rechercheGraine = ref(''); const filtreTypeGraine = ref(''); const filtreStock = ref('tous'); 
 const grainesFiltrees = computed(() => { 
   if (!grainotheque.value) return []; 
   return grainotheque.value.filter(g => { 
     const matchNom = (g.nom || '').toLowerCase().includes((rechercheGraine.value || '').toLowerCase()); 
     const matchType = filtreTypeGraine.value === '' || g.type === filtreTypeGraine.value; 
-    const matchPossession = !filtrePossession.value || g.en_possession; 
-    return matchNom && matchType && matchPossession; 
+    const matchStock = filtreStock.value === 'tous' ? true : (filtreStock.value === 'possede' ? g.en_possession : !g.en_possession);
+    return matchNom && matchType && matchStock; 
   }); 
 });
 
@@ -916,15 +1119,59 @@ function estEnGodet(idGraine) { return (godets.value || []).some(g => g.id_grain
 const godetsAffichables = computed(() => { if (!godets.value) return []; return godets.value.map(godet => { const graine = (grainotheque.value || []).find(g => g.id === godet.id_graine) || { nom: 'Graine supprimée', icone: '❓', type: 'Inconnu' }; return { ...godet, nom: graine.nom, icone: graine.icone, type: graine.type }; }).reverse(); });
 const totalGodetsCultives = computed(() => (godets.value || []).reduce((acc, g) => acc + g.quantite, 0));
 
+// --- VUE POTS ---
+const recherchePot = ref('');
+const afficherModalPot = ref(false); 
+const modeEditionPot = ref(false); 
+const potParDefaut = { id: null, nom: '', icone: '🪴', environnement: 'Interieur', emplacement: '', arrosage: 7, dernier_arrosage: Date.now() };
+const nouveauPot = ref({ ...potParDefaut });
+
+const potsInterieurFiltres = computed(() => (pots.value || []).filter(p => p.environnement === 'Interieur' && p.nom.toLowerCase().includes(recherchePot.value.toLowerCase())));
+const potsExterieurFiltres = computed(() => (pots.value || []).filter(p => p.environnement === 'Exterieur' && p.nom.toLowerCase().includes(recherchePot.value.toLowerCase())));
+
+function ouvrirModalPot(p = null) { 
+  if (p) { modeEditionPot.value = true; nouveauPot.value = { ...p }; } 
+  else { modeEditionPot.value = false; nouveauPot.value = { ...potParDefaut, id: Date.now() }; } 
+  afficherModalPot.value = true; 
+}
+function validerAjoutPot() { 
+  if (modeEditionPot.value) { 
+    const index = pots.value.findIndex(p => p.id === nouveauPot.value.id); 
+    if (index !== -1) pots.value[index] = { ...nouveauPot.value }; 
+  } else { 
+    pots.value.push({ ...nouveauPot.value, dernier_arrosage: Date.now() }); 
+  } 
+  afficherModalPot.value = false; 
+}
+function supprimerPot(id) { 
+  demanderConfirmation("Voulez-vous vraiment supprimer cette plante en pot ?", () => {
+    pots.value = pots.value.filter(p => p.id !== id);
+  });
+}
+function potBesoinEau(pot) {
+  if (!pot.arrosage) return false;
+  return ((Date.now() - (pot.dernier_arrosage || 0)) / (1000 * 3600 * 24)) >= pot.arrosage;
+}
+function arroserPot(pot) { 
+  pot.arrosageEnCours = true; 
+  pot.dernier_arrosage = Date.now(); 
+  setTimeout(() => { pot.arrosageEnCours = false; syncPotsForcer(); }, 2000); 
+}
+// ----------------
+
 function debounce(fn, delay) { let timeoutId; return (...args) => { clearTimeout(timeoutId); timeoutId = setTimeout(() => fn(...args), delay); }; }
 const syncGraines = debounce(async (data) => { localStorage.setItem('mySecretGarden_graines', JSON.stringify(data)); try { await fetch(`${backendUrl}/api/graines`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); } catch(e){} }, 1000);
 const syncParcelles = debounce(async (data) => { localStorage.setItem('mySecretGarden_parcelles', JSON.stringify(data)); try { await fetch(`${backendUrl}/api/parcelles`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); } catch(e){} }, 1000);
 const syncGodets = debounce(async (data) => { localStorage.setItem('mySecretGarden_godets', JSON.stringify(data)); try { await fetch(`${backendUrl}/api/godets`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); } catch(e){} }, 1000);
+const syncPots = debounce(async (data) => { localStorage.setItem('mySecretGarden_pots', JSON.stringify(data)); try { await fetch(`${backendUrl}/api/pots`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); } catch(e){} }, 1000);
+
 function syncParcellesForcer() { syncParcelles(parcelles.value); }
+function syncPotsForcer() { syncPots(pots.value); }
 
 watch(grainotheque, (newVal) => { syncGraines(newVal); }, { deep: true });
 watch(parcelles, (newVal) => { syncParcelles(newVal); }, { deep: true });
 watch(godets, (newVal) => { syncGodets(newVal); }, { deep: true });
+watch(pots, (newVal) => { syncPots(newVal); }, { deep: true });
 
 const reglages = ref({ webhookUrl: '', webhookArrosage: true, webhookPluie: true, webhookHeure: '10:00', ville: '' });
 const syncReglagesServeur = debounce(async (data) => { try { await fetch(`${backendUrl}/api/reglages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); } catch(e){} }, 1000);
@@ -953,6 +1200,7 @@ onMounted(async () => {
   } catch(e) { const saved = localStorage.getItem('mySecretGarden_parcelles'); if(saved) parcelles.value = JSON.parse(saved) || []; }
   
   try { const resGodets = await fetch(`${backendUrl}/api/godets`); if (resGodets.ok) godets.value = await resGodets.json(); } catch(e) { const saved = localStorage.getItem('mySecretGarden_godets'); if(saved) godets.value = JSON.parse(saved) || []; }
+  try { const resPots = await fetch(`${backendUrl}/api/pots`); if (resPots.ok) pots.value = await resPots.json(); } catch(e) { const saved = localStorage.getItem('mySecretGarden_pots'); if(saved) pots.value = JSON.parse(saved) || []; }
   try { const resReg = await fetch(`${backendUrl}/api/reglages`); if (resReg.ok) { const dataReg = await resReg.json(); reglages.value = { ...reglages.value, ...dataReg }; } } catch(e) { const saved = localStorage.getItem('mySecretGarden_reglages'); if(saved) reglages.value = { ...reglages.value, ...JSON.parse(saved) }; }
   
   if (reglages.value.ville) chargerMeteo();
@@ -993,7 +1241,16 @@ function arroserTout() {
   (parcelles.value || []).forEach(p => { 
     if (p.type === 'bac' && bacBesoinEau(p)) { p.arrosageEnCours = true; p.dernier_arrosage = Date.now(); }
   });
-  setTimeout(() => { pluieGlobaleActive.value = false; (parcelles.value || []).forEach(p => p.arrosageEnCours = false); syncParcellesForcer(); }, 2500);
+  (pots.value || []).forEach(p => { 
+    if (potBesoinEau(p)) { p.arrosageEnCours = true; p.dernier_arrosage = Date.now(); }
+  });
+  setTimeout(() => { 
+    pluieGlobaleActive.value = false; 
+    (parcelles.value || []).forEach(p => p.arrosageEnCours = false); 
+    (pots.value || []).forEach(p => p.arrosageEnCours = false); 
+    syncParcellesForcer(); 
+    syncPotsForcer();
+  }, 2500);
 }
 function declencherArrosageGlobal() { arroserTout(); }
 
@@ -1004,6 +1261,13 @@ const alertesArrosage = computed(() => {
     const plantesDuBac = p[saison] ? [...new Set(p[saison].map(pl => pl.nom))] : [];
     return { id: p.id, bac: p, nom: p.nom, plantes: plantesDuBac, joursDepuis: Math.floor((Date.now() - (p.dernier_arrosage || 0)) / (1000 * 3600 * 24)) }; 
   }); 
+});
+
+const alertesArrosagePots = computed(() => {
+  if (!pots.value) return [];
+  return pots.value.filter(p => potBesoinEau(p)).map(p => {
+    return { id: p.id, pot: p, nom: p.nom, icone: p.icone, emplacement: p.environnement + (p.emplacement ? ` - ${p.emplacement}` : ''), joursDepuis: Math.floor((Date.now() - (p.dernier_arrosage || 0)) / (1000 * 3600 * 24)) };
+  });
 });
 
 const alertesSaisonsFiltrees = computed(() => {
@@ -1022,7 +1286,8 @@ const alertesSaisonsFiltrees = computed(() => {
   });
   return alertes.sort((a,b) => a.dist - b.dist);
 });
-const totalAlertes = computed(() => { return (alertesArrosage.value ? alertesArrosage.value.length : 0) + (alertesSaisonsFiltrees.value ? alertesSaisonsFiltrees.value.length : 0); });
+const totalAlertesArrosage = computed(() => (alertesArrosage.value ? alertesArrosage.value.length : 0) + (alertesArrosagePots.value ? alertesArrosagePots.value.length : 0));
+const totalAlertes = computed(() => { return totalAlertesArrosage.value + (alertesSaisonsFiltrees.value ? alertesSaisonsFiltrees.value.length : 0); });
 
 async function testerWebhookDiscord() {
   if (!reglages.value.webhookUrl) return;
@@ -1258,18 +1523,18 @@ function terminerAction() {
   } 
 }
 
-const afficherModal = ref(false); const modeEdition = ref(false); const graineParDefaut = { id: null, nom: '', type: 'Légume-fruit', icone: '🌱', sol: '', arrosage: 7, godet_debut: '', godet_fin: '', plantation_debut: '', plantation_fin: '', recolte_debut: '', recolte_fin: '', en_possession: true, peremption: '' }; const nouvelleGraine = ref({ ...graineParDefaut }); 
+const afficherModal = ref(false); const modeEdition = ref(false); const graineParDefaut = { id: null, nom: '', type: 'Légume-fruit', icone: '🌱', sol: '', arrosage: 7, godet_debut: '', godet_fin: '', plantation_debut: '', plantation_fin: '', recolte_debut: '', recolte_fin: '', en_possession: true, peremption: '', est_plant: false }; const nouvelleGraine = ref({ ...graineParDefaut }); 
 function ouvrirModalGraine(g = null) { if (g) { modeEdition.value = true; nouvelleGraine.value = { ...g }; } else { modeEdition.value = false; nouvelleGraine.value = { ...graineParDefaut }; } afficherModal.value = true; }
 function sauvegarderGraine() { if (modeEdition.value) { const index = grainotheque.value.findIndex(g => g.id === nouvelleGraine.value.id); if (index !== -1) grainotheque.value[index] = { ...nouvelleGraine.value }; } else { nouvelleGraine.value.id = Date.now(); if(!grainotheque.value) grainotheque.value = []; grainotheque.value.push({ ...nouvelleGraine.value }); } afficherModal.value = false; }
 
 function supprimerGraine(id) { 
-  demanderConfirmation("Supprimer cette variété de l'encyclopédie ? (Vos godets existants ne seront pas impactés)", () => {
+  demanderConfirmation("Supprimer ce végétal de l'encyclopédie ? (Vos godets existants ne seront pas impactés)", () => {
     grainotheque.value = grainotheque.value.filter(g => g.id !== id);
   });
 }
 
 const afficherModalPlantation = ref(false); const parcelleSelectionnee = ref(null); const nouvellePlantation = ref({ graine: '', quantite: 1 }); 
-function ouvrirModalPlantation(parcelle) { if (!grainotheque.value || grainotheque.value.length === 0) { alert("Ajoutez des graines d'abord !"); return; } parcelleSelectionnee.value = parcelle; nouvellePlantation.value = { graine: '', quantite: 1 }; afficherModalPlantation.value = true; }
+function ouvrirModalPlantation(parcelle) { if (!grainotheque.value || grainotheque.value.length === 0) { alert("Ajoutez des plantes d'abord !"); return; } parcelleSelectionnee.value = parcelle; nouvellePlantation.value = { graine: '', quantite: 1 }; afficherModalPlantation.value = true; }
 function fermerModalPlantation() { afficherModalPlantation.value = false; parcelleSelectionnee.value = null; }
 function validerPlantation() { if (parcelleSelectionnee.value && nouvellePlantation.value.graine) { const saison = saisonActive.value === 'ete' ? 'plantations_ete' : 'plantations_hiver'; if (!parcelleSelectionnee.value[saison]) parcelleSelectionnee.value[saison] = []; parcelleSelectionnee.value[saison].push({ id_graine: nouvellePlantation.value.graine.id, nom: nouvellePlantation.value.graine.nom, icone: nouvellePlantation.value.graine.icone, quantite: nouvellePlantation.value.quantite, date_plantation: getCurrentYearMonth() }); parcelleSelectionnee.value.dernier_arrosage = Date.now(); syncParcellesForcer(); fermerModalPlantation(); } }
 
@@ -1374,6 +1639,8 @@ body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-a
 .vue-potager { position: relative; height: 100%; width: 100%; display: flex; overflow: hidden;}
 .workspace-terrain { flex-grow: 1; height: 100%; position: relative; overflow: hidden; background-color: var(--grass-bg); transition: background-color 1s ease; touch-action: none; }
 .workspace-terrain.mode-ete { background-color: #5f8d4e; background-image: linear-gradient(115deg, rgba(255,255,255,0.03) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.03) 75%, rgba(255,255,255,0.03)), linear-gradient(245deg, rgba(0,0,0,0.03) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.03) 75%, rgba(0,0,0,0.03)); background-size: 20px 20px; }
+
+/* MODIFICATION COULEUR MODE HIVER */
 .workspace-terrain.mode-hiver { background-color: #8fa693; }
 
 /* ANIMATION NEIGE GLOBALE */
@@ -1410,7 +1677,7 @@ body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-a
 .element-terrain.type-bac.en-cours-dessin .terre-interieure { background-color: rgba(62, 39, 35, 0.3); background-image: none; box-shadow: none;}
 .terre-interieure { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--soil-bg); border-radius: 2px; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); overflow: hidden; transition: background-color 0.5s; }
 
-/* TYPE: BORDURE (Clôture) */
+/* TYPE: BORDURE */
 .element-terrain.type-bordure { height: 12px; background: #8B5A2B; background-image: repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(0,0,0,0.1) 5px, rgba(0,0,0,0.1) 10px); border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.4); transform-origin: 0 50%; }
 
 /* TYPE: ARBRE & DECO */
@@ -1460,13 +1727,13 @@ body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-a
 @keyframes pulseRed { 0% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.5); border-color: #d32f2f; } 70% { box-shadow: 0 0 0 10px rgba(211, 47, 47, 0); border-color: var(--wood-border); } 100% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0); border-color: var(--wood-border); } }
 .indicateur-conflit { position: absolute; top: -12px; left: -12px; background: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 2px solid #d32f2f; z-index: 60; box-shadow: 0 2px 5px rgba(0,0,0,0.3); cursor: help;}
 
-/* MODALE DE DECO */
+/* MODALE DECO */
 .grille-emojis-deco { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; background: #fafcfa; border: 1px solid var(--border-light); border-radius: 8px; padding: 15px; }
 .emoji-deco-item { font-size: 2.5rem; cursor: pointer; padding: 10px; border-radius: 12px; transition: 0.2s; border: 2px solid transparent; }
 .emoji-deco-item:hover { background: #e0e5e2; transform: scale(1.1); }
 .emoji-deco-item.actif { background: white; border-color: var(--accent-gold); box-shadow: 0 4px 10px rgba(0,0,0,0.1); transform: scale(1.1); }
 
-/* TIMELINE HISTORIQUE (PANNEAU DROIT) */
+/* TIMELINE HISTORIQUE */
 .panel-historique { width: 320px; background: white; border-left: 1px solid var(--border-light); z-index: 120; display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: absolute; right: 0; top: 0; height: 100%; box-shadow: -5px 0 20px rgba(0,0,0,0.05);}
 .panel-historique.ouvert { transform: translateX(0); }
 .ph-header { padding: 20px; border-bottom: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center; background: #fafcfa;}
@@ -1485,10 +1752,8 @@ body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-a
 .badge-saison-petit { font-size: 0.65em; font-weight: 700; padding: 2px 6px; border-radius: 4px; display: inline-block; text-transform: uppercase; align-self: flex-start; color: white;}
 .badge-saison-petit.ete { background: #f57f17; }
 .badge-saison-petit.hiver { background: #0288d1; }
-/* ARCHIVE HISTORIQUE */
 .plante-archivee { text-decoration: line-through; opacity: 0.6; }
 .badge-saison-petit.archive { background: #9e9e9e; }
-
 
 /* AUTRES VUES (COMMUNES) */
 .header-epure { margin-bottom: 30px; border-bottom: 1px solid var(--border-light); padding-bottom: 20px;}
@@ -1511,7 +1776,6 @@ body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-a
 .carte-graine { background: white; border-radius: 12px; border: 1px solid var(--border-light); box-shadow: 0 4px 12px rgba(0,0,0,0.03); transition: all 0.2s; position: relative; overflow: hidden;}
 .carte-graine:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); border-color: #cbd4cf;}
 
-/* CARTE PERIMÉE NOUVEAU CSS */
 .carte-graine.is-perimee { background-color: #fffafb; border-color: #ffcdd2; }
 .carte-graine.is-perimee .icone-graine { filter: grayscale(1); opacity: 0.6; }
 .badge-perime { background-color: #ffebee; color: #c62828; border-color: #ffcdd2; font-weight: 600; }
@@ -1519,6 +1783,8 @@ body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-a
 .is-perimee .titre-graine h3 { text-decoration: line-through; opacity: 0.6; }
 
 .carte-godet { border-left: 4px solid #8d6e63; }
+.carte-pot { border-left: 4px solid #ab47bc; }
+.carte-pot-ext { border-left: 4px solid #f57f17; }
 .carte-actions { position: absolute; top: 12px; right: 12px; display: flex; gap: 6px; opacity: 0;}
 .carte-graine:hover .carte-actions { opacity: 1; }
 .btn-icon { background: white; border: 1px solid var(--border-light); border-radius: 4px; padding: 4px 8px; cursor: pointer; color: var(--text-muted); font-size: 14px;}
@@ -1533,6 +1799,11 @@ body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-a
 .badge-action-possession:hover { filter: brightness(0.95); }
 
 .badge { align-self: flex-start; background: #f0f4f1; color: var(--text-muted); padding: 4px 10px; border-radius: 4px; font-size: 0.75em; font-weight: 500; border: 1px solid #e0e5e2;}
+.badge-interieur { background: #f3e5f5; color: #8e24aa; border-color: #e1bee7; }
+.badge-exterieur { background: #fff8e1; color: #f57f17; border-color: #ffecb3; }
+.badge-plant { background: #e8f5e9; color: #2e7d32; border-color: #c8e6c9; }
+.badge-seed { background: #fff3e0; color: #e65100; border-color: #ffe0b2; }
+
 .badge-godet-actif { background: #efebe9; color: #5d4037; font-size: 0.65em; padding: 2px 6px; border-radius: 4px; border: 1px solid #d7ccc8; font-weight: 600;}
 .infos-agronomiques { background: #fafcfa; padding: 15px; border-radius: 8px; border: 1px dashed var(--border-light); display: flex; flex-direction: column; gap: 10px;}
 .infos-agronomiques-mini-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 5px; }
@@ -1697,7 +1968,7 @@ input:focus, select:focus { border-color: var(--accent-gold); outline: none; bac
 .btn-cancel { background: transparent; color: var(--text-muted); padding: 10px 16px; border: 1px solid var(--border-light); border-radius: 6px; cursor: pointer; font-weight: 500;}
 .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* MODALE DE CONFIRMATION */
+/* MODALE DE CONFIRMATION (NOUVEAU) */
 .modal-confirm { text-align: center; width: 350px; padding: 25px; }
 .confirm-icon { font-size: 3em; margin-bottom: 10px; line-height: 1; }
 .btn-danger { background: #d32f2f; color: white; border: none; }

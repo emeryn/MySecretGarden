@@ -4,6 +4,7 @@ import os
 import time
 from datetime import datetime
 import httpx
+import requests
 from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles 
@@ -64,6 +65,15 @@ def get_godets(): return read_json("godets", [])
 def save_godets(data: List[Dict[str, Any]]):
     write_json("godets", data)
     return {"status": "ok"}
+
+@app.get("/api/pots")
+def get_pots(): 
+    return read_json("pots", [])
+
+@app.post("/api/pots")
+def save_pots(data: List[Dict[str, Any]]):
+    write_json("pots", data)
+    return {"status": "success", "message": "Pots sauvegardés"}
 
 @app.get("/api/reglages")
 def get_reglages():
