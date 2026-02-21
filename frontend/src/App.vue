@@ -1,7 +1,7 @@
 <template>
   <div class="layout">
     <nav :class="['sidebar', { reduit: menuReduit, 'mobile-open': menuMobileOuvert }]">      <button class="btn-toggle-menu hide-on-mobile" @click="menuReduit = !menuReduit">{{ menuReduit ? '›' : '‹' }}</button>
-      <button class="btn-close-mobile" @click="menuMobileOuvert = false">×</button>
+      <button class="btn-close-mobile show-on-mobile" @click="menuMobileOuvert = false">×</button>
 
       <div class="logo-container" :class="{ 'logo-reduit': menuReduit }">
         <img :src="logoImg" alt="My Secret Garden Logo" class="logo-img" />
@@ -48,7 +48,7 @@
       </div>
     </nav>
     
-    <button class="btn-hamburger" @click="menuMobileOuvert = true">☰</button>
+    <button class="btn-hamburger show-on-mobile" @click="menuMobileOuvert = true">☰</button>
     <div v-if="menuMobileOuvert" class="mobile-overlay" @click="menuMobileOuvert = false"></div>
 
     <main class="content">
@@ -69,12 +69,12 @@
             <div class="separateur-v"></div>
             
             <button class="btn-tool-v arrosoir-global-btn" @click="declencherArrosageGlobal" title="Arroser tout le potager">🚿</button>
-            <div class="separateur-v"></div>
+            <div class="separateur-v hide-on-mobile-small"></div>
 
-            <button class="btn-tool-v" @click="zoomer(0.1)" title="Zoomer">➕</button>
-            <span class="zoom-text-v">{{ Math.round(zoom * 100) }}%</span>
-            <button class="btn-tool-v" @click="zoomer(-0.1)" title="Dézoomer">➖</button>
-            <button class="btn-tool-v" @click="recentrerTerrain" title="Retourner au centre">⌖</button>
+            <button class="btn-tool-v hide-on-mobile-small" @click="zoomer(0.1)" title="Zoomer">➕</button>
+            <span class="zoom-text-v hide-on-mobile-small">{{ Math.round(zoom * 100) }}%</span>
+            <button class="btn-tool-v hide-on-mobile-small" @click="zoomer(-0.1)" title="Dézoomer">➖</button>
+            <button class="btn-tool-v hide-on-mobile-small" @click="recentrerTerrain" title="Retourner au centre">⌖</button>
             <div class="separateur-v"></div>
 
             <button :class="['btn-tool-v', 'btn-saison-v', saisonActive]" @click="basculerSaison" title="Bascule Été/Hiver">
@@ -160,7 +160,7 @@
         <header class="header-epure flex-between block-mobile">
           <div>
             <h2>Inventaire des semences</h2>
-            <p class="sous-titre">Gérez vos variétés, leurs cycles et leurs besoins en sol.</p>
+            <p class="sous-titre">Gérez vos variétés, leurs cycles, besoins en sol et péremptions.</p>
             <div class="legende-possession mt-15">
               <span class="info-bulle">💡 <b>Astuce :</b> Vous pouvez ajouter n'importe quelle graine à l'encyclopédie. Cliquez sur le bouton <b>"🛒 À acheter"</b> ou <b>"📦 En stock"</b> d'une carte pour indiquer si vous la possédez physiquement.</span>
             </div>
@@ -190,7 +190,7 @@
           </div>
 
           <div class="grid-graines">
-            <div v-for="graine in grainesFiltrees" :key="graine.id" class="carte-graine">
+            <div v-for="graine in grainesFiltrees" :key="graine.id" :class="['carte-graine', { 'is-perimee': estPerimee(graine.peremption) }]">
               <div class="carte-actions">
                 <button class="btn-icon" @click="ouvrirModalGraine(graine)" title="Modifier">✎</button>
                 <button class="btn-icon rouge" @click="supprimerGraine(graine.id)" title="Supprimer">×</button>
@@ -208,7 +208,11 @@
                         <span v-if="estEnGodet(graine.id)" class="badge-godet-actif">🪴 En godet</span>
                       </div>
                     </div>
-                    <span class="badge">{{ graine.type }}</span>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
+                      <span class="badge">{{ graine.type }}</span>
+                      <span v-if="estPerimee(graine.peremption)" class="badge badge-perime">⚠️ Périmée</span>
+                      <span v-else-if="graine.peremption" class="badge badge-date">⏳ Exp: {{ formatMoisAnnee(graine.peremption) }}</span>
+                    </div>
                   </div>
                 </div>
                 <div class="infos-agronomiques">
@@ -595,6 +599,10 @@
                 <span class="toggle-label">Je possède cette graine en stock</span>
               </label>
             </div>
+            <div class="form-group third full-width">
+              <label>Date de péremption (Optionnelle)</label>
+              <input type="month" v-model="nouvelleGraine.peremption" title="Mois/Année limite d'utilisation" />
+            </div>
           </div>
 
           <div class="form-row block-mobile">
@@ -711,7 +719,6 @@ const parcelles = ref([])
 const grainotheque = ref([])
 const godets = ref([]) 
 
-// --- NOUVEAU : SYSTEME DE CONFIRMATION GLOBALE ---
 const afficherConfirm = ref(false);
 const confirmMessage = ref('');
 const confirmAction = ref(null);
@@ -721,18 +728,8 @@ function demanderConfirmation(msg, action) {
   confirmAction.value = action;
   afficherConfirm.value = true;
 }
-
-function annulerConfirmation() {
-  afficherConfirm.value = false;
-  confirmAction.value = null;
-}
-
-function validerConfirmation() {
-  if (confirmAction.value) confirmAction.value();
-  afficherConfirm.value = false;
-  confirmAction.value = null;
-}
-// ---------------------------------------------------
+function annulerConfirmation() { afficherConfirm.value = false; confirmAction.value = null; }
+function validerConfirmation() { if (confirmAction.value) confirmAction.value(); afficherConfirm.value = false; confirmAction.value = null; }
 
 function changerVue(vue) {
   vueActive.value = vue;
@@ -767,6 +764,15 @@ const formatMoisAnnee = (yyyymm) => {
   if(parts.length < 2) return 'Date inconnue';
   return `${mois[parseInt(parts[1], 10) - 1]} ${parts[0]}`; 
 };
+
+// --- NOUVEAU: LOGIQUE PEREMPTION ---
+function estPerimee(peremptionStr) {
+  if (!peremptionStr) return false;
+  const today = new Date();
+  const currentYearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  return peremptionStr < currentYearMonth; // Comparaison YYYY-MM
+}
+// -----------------------------------
 
 const dbAssociations = [
   { plante: "Ail", fav: ["betterave", "carotte", "chou", "fraise", "laitue", "tomate"], defav: ["asperge", "haricot", "persil", "pois", "poireau", "pomme de terre"] },
@@ -900,7 +906,6 @@ const afficherModalGodet = ref(false); const modeEditionGodet = ref(false); cons
 function ouvrirModalAjoutGodet(g = null) { if (g) { modeEditionGodet.value = true; nouveauGodet.value = { ...g }; } else { modeEditionGodet.value = false; nouveauGodet.value = { id_graine: '', quantite: 1, emplacement: '' }; } afficherModalGodet.value = true; }
 function validerAjoutGodet() { if (modeEditionGodet.value) { const index = godets.value.findIndex(g => g.id === nouveauGodet.value.id); if (index !== -1) godets.value[index] = { ...nouveauGodet.value }; } else { godets.value.push({ id: Date.now(), ...nouveauGodet.value }); } afficherModalGodet.value = false; }
 
-// --- UPDATED: Suppression Godet avec Modale ---
 function supprimerGodet(id) { 
   demanderConfirmation("Confirmez-vous le repiquage ou la suppression de ce godet ?", () => {
     godets.value = godets.value.filter(g => g.id !== id);
@@ -1073,7 +1078,6 @@ function styleTooltip(p) {
 function recentrerTerrain() { pan.value = { x: 0, y: 0 }; zoom.value = 1; } 
 function allerAuBac(bac) { if(!bac) return; pan.value = { x: -bac.x + (window.innerWidth/2) - 140, y: -bac.y + (window.innerHeight/2) }; zoom.value = 1.2; vueActive.value = 'potager'; menuMobileOuvert.value = false; }
 
-// --- UPDATED : Suppression d'un bac/element de terrain avec Modale ---
 function supprimerParcelle(id) { 
   demanderConfirmation("Voulez-vous vraiment supprimer cet élément du terrain ?", () => {
     parcelles.value = parcelles.value.filter(p => p.id !== id); 
@@ -1094,17 +1098,12 @@ function getEvtCoords(e) {
 }
 
 function commencerAction(e) { 
-  // GESTION PINCH-TO-ZOOM MOBILE (2 doigts)
   if (e.touches && e.touches.length === 2) {
     const t1 = e.touches[0];
     const t2 = e.touches[1];
     initialPinchDistance.value = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
     initialPinchZoom.value = zoom.value;
-    isPanning.value = false;
-    enTrainDeDessiner.value = false;
-    parcelleEnCours.value = null;
-    draggedParcelle.value = null;
-    resizingParcelle.value = null;
+    isPanning.value = false; enTrainDeDessiner.value = false; parcelleEnCours.value = null; draggedParcelle.value = null; resizingParcelle.value = null;
     return;
   }
 
@@ -1139,22 +1138,8 @@ function commencerAction(e) {
   } 
 }
 
-function validerAjoutArbre() {
-  parcelles.value.push({
-    id: Date.now(), type: 'arbre', taille: nouvelArbre.value.taille, nom: nouvelArbre.value.nom,
-    x: nouvelleCibleCoords.value.x, y: nouvelleCibleCoords.value.y,
-    plantations_ete: [], plantations_hiver: [], dernier_arrosage: Date.now()
-  });
-  afficherModalArbre.value = false;
-}
-
-function validerAjoutDeco() {
-  parcelles.value.push({
-    id: Date.now(), type: 'deco', icone: nouvelleDeco.value.icone,
-    x: nouvelleCibleCoords.value.x, y: nouvelleCibleCoords.value.y
-  });
-  afficherModalDeco.value = false;
-}
+function validerAjoutArbre() { parcelles.value.push({ id: Date.now(), type: 'arbre', taille: nouvelArbre.value.taille, nom: nouvelArbre.value.nom, x: nouvelleCibleCoords.value.x, y: nouvelleCibleCoords.value.y, plantations_ete: [], plantations_hiver: [], dernier_arrosage: Date.now() }); afficherModalArbre.value = false; }
+function validerAjoutDeco() { parcelles.value.push({ id: Date.now(), type: 'deco', icone: nouvelleDeco.value.icone, x: nouvelleCibleCoords.value.x, y: nouvelleCibleCoords.value.y }); afficherModalDeco.value = false; }
 
 function commencerDragParcelle(e, p) { 
   if (outilActif.value !== 'main') return; 
@@ -1163,11 +1148,8 @@ function commencerDragParcelle(e, p) {
   const rect = terrainRef.value.getBoundingClientRect(); 
   const rawX = (coords.x - rect.left) / zoom.value;
   const rawY = (coords.y - rect.top) / zoom.value;
-  if (p.type === 'bordure') {
-    dragOffset.value = { x: rawX - p.x1, y: rawY - p.y1 };
-  } else {
-    dragOffset.value = { x: rawX - p.x, y: rawY - p.y };
-  }
+  if (p.type === 'bordure') { dragOffset.value = { x: rawX - p.x1, y: rawY - p.y1 }; } 
+  else { dragOffset.value = { x: rawX - p.x, y: rawY - p.y }; }
 }
 
 const resizeBordureTarget = ref(null);
@@ -1183,11 +1165,9 @@ function commencerResize(e, p) {
 }
 
 function actionEnCours(e) { 
-  // GESTION PINCH-TO-ZOOM
   if (e.touches && e.touches.length === 2) {
     if (initialPinchDistance.value) {
-      const t1 = e.touches[0];
-      const t2 = e.touches[1];
+      const t1 = e.touches[0]; const t2 = e.touches[1];
       const currentDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
       const ratio = currentDist / initialPinchDistance.value;
       zoom.value = Math.min(Math.max(0.2, initialPinchZoom.value * ratio), 3);
@@ -1195,7 +1175,6 @@ function actionEnCours(e) {
     return;
   }
   
-  // Anti-saut si on lâche un doigt
   if (initialPinchDistance.value && e.touches && e.touches.length === 1) {
     lastMousePos.value = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     initialPinchDistance.value = null;
@@ -1265,12 +1244,7 @@ function actionEnCours(e) {
 }
 
 function terminerAction() { 
-  isPanning.value = false; 
-  draggedParcelle.value = null; 
-  resizingParcelle.value = null; 
-  resizeBordureTarget.value = null;
-  initialPinchDistance.value = null;
-
+  isPanning.value = false; draggedParcelle.value = null; resizingParcelle.value = null; resizeBordureTarget.value = null; initialPinchDistance.value = null;
   if (enTrainDeDessiner.value) { 
     enTrainDeDessiner.value = false; 
     if (parcelleEnCours.value.type === 'bordure') {
@@ -1284,11 +1258,10 @@ function terminerAction() {
   } 
 }
 
-const afficherModal = ref(false); const modeEdition = ref(false); const graineParDefaut = { id: null, nom: '', type: 'Légume-fruit', icone: '🌱', sol: '', arrosage: 7, godet_debut: '', godet_fin: '', plantation_debut: '', plantation_fin: '', recolte_debut: '', recolte_fin: '', en_possession: true }; const nouvelleGraine = ref({ ...graineParDefaut }); 
+const afficherModal = ref(false); const modeEdition = ref(false); const graineParDefaut = { id: null, nom: '', type: 'Légume-fruit', icone: '🌱', sol: '', arrosage: 7, godet_debut: '', godet_fin: '', plantation_debut: '', plantation_fin: '', recolte_debut: '', recolte_fin: '', en_possession: true, peremption: '' }; const nouvelleGraine = ref({ ...graineParDefaut }); 
 function ouvrirModalGraine(g = null) { if (g) { modeEdition.value = true; nouvelleGraine.value = { ...g }; } else { modeEdition.value = false; nouvelleGraine.value = { ...graineParDefaut }; } afficherModal.value = true; }
 function sauvegarderGraine() { if (modeEdition.value) { const index = grainotheque.value.findIndex(g => g.id === nouvelleGraine.value.id); if (index !== -1) grainotheque.value[index] = { ...nouvelleGraine.value }; } else { nouvelleGraine.value.id = Date.now(); if(!grainotheque.value) grainotheque.value = []; grainotheque.value.push({ ...nouvelleGraine.value }); } afficherModal.value = false; }
 
-// --- UPDATED : Suppression de Graine avec Modale ---
 function supprimerGraine(id) { 
   demanderConfirmation("Supprimer cette variété de l'encyclopédie ? (Vos godets existants ne seront pas impactés)", () => {
     grainotheque.value = grainotheque.value.filter(g => g.id !== id);
@@ -1303,7 +1276,6 @@ function validerPlantation() { if (parcelleSelectionnee.value && nouvellePlantat
 const afficherModalGestionBac = ref(false); const plantesEnGestion = ref([]); const parcelleEnGestion = ref(null); 
 function ouvrirModalGestionBac(parcelle) { parcelleEnGestion.value = parcelle; const saison = saisonActive.value === 'ete' ? 'plantations_ete' : 'plantations_hiver'; plantesEnGestion.value = parcelle[saison] || []; plantesEnGestion.value.forEach(p => { if(!p.date_plantation) p.date_plantation = getCurrentYearMonth(); }); afficherModalGestionBac.value = true; }
 
-// --- UPDATED : Retrait d'une plante du bac avec Modale ---
 function retirerPlanteDuBac(index) { 
   demanderConfirmation("Retirer cette plante du bac ? (Elle sera conservée dans l'historique des récoltes)", () => {
     const planteCible = plantesEnGestion.value[index];
@@ -1402,8 +1374,6 @@ body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-a
 .vue-potager { position: relative; height: 100%; width: 100%; display: flex; overflow: hidden;}
 .workspace-terrain { flex-grow: 1; height: 100%; position: relative; overflow: hidden; background-color: var(--grass-bg); transition: background-color 1s ease; touch-action: none; }
 .workspace-terrain.mode-ete { background-color: #5f8d4e; background-image: linear-gradient(115deg, rgba(255,255,255,0.03) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.03) 75%, rgba(255,255,255,0.03)), linear-gradient(245deg, rgba(0,0,0,0.03) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.03) 75%, rgba(0,0,0,0.03)); background-size: 20px 20px; }
-
-/* MODIFICATION COULEUR MODE HIVER */
 .workspace-terrain.mode-hiver { background-color: #8fa693; }
 
 /* ANIMATION NEIGE GLOBALE */
@@ -1490,7 +1460,7 @@ body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-a
 @keyframes pulseRed { 0% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.5); border-color: #d32f2f; } 70% { box-shadow: 0 0 0 10px rgba(211, 47, 47, 0); border-color: var(--wood-border); } 100% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0); border-color: var(--wood-border); } }
 .indicateur-conflit { position: absolute; top: -12px; left: -12px; background: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 2px solid #d32f2f; z-index: 60; box-shadow: 0 2px 5px rgba(0,0,0,0.3); cursor: help;}
 
-/* MODALE DECO (Grille) */
+/* MODALE DE DECO */
 .grille-emojis-deco { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; background: #fafcfa; border: 1px solid var(--border-light); border-radius: 8px; padding: 15px; }
 .emoji-deco-item { font-size: 2.5rem; cursor: pointer; padding: 10px; border-radius: 12px; transition: 0.2s; border: 2px solid transparent; }
 .emoji-deco-item:hover { background: #e0e5e2; transform: scale(1.1); }
@@ -1540,15 +1510,23 @@ body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-a
 .grid-graines { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px; }
 .carte-graine { background: white; border-radius: 12px; border: 1px solid var(--border-light); box-shadow: 0 4px 12px rgba(0,0,0,0.03); transition: all 0.2s; position: relative; overflow: hidden;}
 .carte-graine:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); border-color: #cbd4cf;}
+
+/* CARTE PERIMÉE NOUVEAU CSS */
+.carte-graine.is-perimee { background-color: #fffafb; border-color: #ffcdd2; }
+.carte-graine.is-perimee .icone-graine { filter: grayscale(1); opacity: 0.6; }
+.badge-perime { background-color: #ffebee; color: #c62828; border-color: #ffcdd2; font-weight: 600; }
+.badge-date { background-color: #e3f2fd; color: #0277bd; border-color: #b3e5fc; }
+.is-perimee .titre-graine h3 { text-decoration: line-through; opacity: 0.6; }
+
 .carte-godet { border-left: 4px solid #8d6e63; }
 .carte-actions { position: absolute; top: 12px; right: 12px; display: flex; gap: 6px; opacity: 0;}
 .carte-graine:hover .carte-actions { opacity: 1; }
 .btn-icon { background: white; border: 1px solid var(--border-light); border-radius: 4px; padding: 4px 8px; cursor: pointer; color: var(--text-muted); font-size: 14px;}
 .carte-contenu { padding: 24px;}
 .carte-top { display: flex; gap: 15px; align-items: flex-start; margin-bottom: 20px;}
-.icone-graine { font-size: 2.5em; background: #f4f6f5; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 12px; border: 1px solid var(--border-light);}
+.icone-graine { font-size: 2.5em; background: #f4f6f5; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 12px; border: 1px solid var(--border-light); transition: 0.2s; }
 .titre-graine { display: flex; flex-direction: column; gap: 6px; flex-grow: 1;}
-.titre-graine h3 { margin: 0; font-size: 1.2em; color: var(--text-main); font-weight: 600; line-height: 1.2;}
+.titre-graine h3 { margin: 0; font-size: 1.2em; color: var(--text-main); font-weight: 600; line-height: 1.2; transition: 0.2s;}
 
 .badge-action-possession { background: #f4f6f5; color: var(--text-muted); border: 1px solid var(--border-light); padding: 4px 8px; border-radius: 6px; font-size: 0.7em; cursor: pointer; font-weight: 600; transition: all 0.2s; font-family: inherit;}
 .badge-action-possession.possede { background: #e8f5e9; color: #2e7d32; border-color: #a5d6a7; }
@@ -1719,7 +1697,7 @@ input:focus, select:focus { border-color: var(--accent-gold); outline: none; bac
 .btn-cancel { background: transparent; color: var(--text-muted); padding: 10px 16px; border: 1px solid var(--border-light); border-radius: 6px; cursor: pointer; font-weight: 500;}
 .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* MODALE DE CONFIRMATION (NOUVEAU) */
+/* MODALE DE CONFIRMATION */
 .modal-confirm { text-align: center; width: 350px; padding: 25px; }
 .confirm-icon { font-size: 3em; margin-bottom: 10px; line-height: 1; }
 .btn-danger { background: #d32f2f; color: white; border: none; }
@@ -1738,22 +1716,15 @@ input[type="month"].input-date-petit { width: auto; padding: 6px; font-size: 0.8
 /* ==========================================
    MEDIA QUERIES (MOBILE RESPONSIVE)
    ========================================== */
-/* ==========================================
-   MEDIA QUERIES (MOBILE RESPONSIVE)
-   ========================================== */
 @media (max-width: 768px) {
   .layout { flex-direction: column; }
-  
-  /* CORRECTION ICI : On force l'affichage des éléments mobiles */
-  .btn-hamburger { display: block !important; }
-  .show-on-mobile { display: block !important; }
-  .hide-on-mobile { display: none !important; }
-  .hide-on-mobile-small { display: none !important; }
-
+  .btn-hamburger { display: block; }
   .sidebar { position: fixed; top: 0; left: -100%; height: 100vh; width: 280px; box-shadow: 5px 0 15px rgba(0,0,0,0.5); overflow-y: auto; }
   .sidebar.mobile-open { left: 0; }
-  .btn-close-mobile { display: block !important; position: absolute; right: 15px; top: 15px; z-index: 2001; }
+  .btn-close-mobile { display: block; }
   .mobile-overlay { display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1999; }
+  .hide-on-mobile { display: none; }
+  .hide-on-mobile-small { display: none !important; }
 
   .vue-scrollable { padding: 80px 15px 20px 15px; } 
   .grid-reglages { grid-template-columns: 1fr; }
