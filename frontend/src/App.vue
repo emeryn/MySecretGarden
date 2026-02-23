@@ -1,6 +1,7 @@
 <template>
   <div class="layout">
-    <nav :class="['sidebar', { reduit: menuReduit, 'mobile-open': menuMobileOuvert }]">      <button class="btn-toggle-menu hide-on-mobile" @click="menuReduit = !menuReduit">{{ menuReduit ? '›' : '‹' }}</button>
+    <nav :class="['sidebar', { reduit: menuReduit }]">
+      <button class="btn-toggle-menu hide-on-mobile" @click="menuReduit = !menuReduit">{{ menuReduit ? '›' : '‹' }}</button>
       <button class="btn-close-mobile show-on-mobile" @click="menuMobileOuvert = false">×</button>
 
       <div class="logo-container" :class="{ 'logo-reduit': menuReduit }">
@@ -41,6 +42,11 @@
       </ul>
       
       <div class="menu-bottom-actions">
+        <div v-if="datePremierGel" class="alerte-gel-menu" :title="menuReduit ? 'Risque de gel le ' + datePremierGel : ''">
+          <span class="icone-gel">❄️</span>
+          <span v-if="!menuReduit">ATTENTION GEL LE {{ datePremierGel }}</span>
+        </div>
+
         <button v-if="totalAlertesArrosage > 0" class="btn-arroser-tout" @click="declencherArrosageGlobal()" title="Arroser tous les éléments assoiffés">
           <span class="icone">💦</span> <span v-if="!menuReduit">Tout arroser ({{ totalAlertesArrosage }})</span>
         </button>
@@ -165,10 +171,17 @@
             <h2>Inventaire des semences</h2>
             <p class="sous-titre">Gérez vos variétés, leurs cycles, besoins en sol et péremptions.</p>
             <div class="legende-possession mt-15">
-              <span class="info-bulle">💡 <b>Astuce :</b> Vous pouvez ajouter n'importe quel végétal à l'encyclopédie. Précisez s'il s'agit d'une graine ou d'un plant déjà formé !</span>
+              <span class="info-bulle">💡 <b>Astuce :</b> Vous pouvez ajouter n'importe quelle graine à l'encyclopédie. Cliquez sur le bouton <b>"🛒 À acheter"</b> ou <b>"📦 En stock"</b> d'une carte pour indiquer si vous la possédez physiquement.</span>
             </div>
           </div>
-          <button class="btn-submit full-width mt-mobile" style="align-self: flex-start;" @click="ouvrirModalGraine()">+ Nouveau végétal</button>
+          <div style="display:flex; flex-direction:column; gap:10px; width: 220px;" class="full-width mt-mobile">
+            <button class="btn-submit full-width" @click="ouvrirModalGraine()">+ Nouveau végétal</button>
+            <div style="display:flex; gap:10px;">
+              <button class="btn-cancel" style="flex:1; padding: 8px; font-size: 0.85em; display:flex; justify-content:center; align-items:center; gap:5px;" @click="exporterGrainotheque" title="Sauvegarder la liste sur votre ordinateur">📤 Export</button>
+              <button class="btn-cancel" style="flex:1; padding: 8px; font-size: 0.85em; display:flex; justify-content:center; align-items:center; gap:5px;" @click="$refs.fileInputImport.click()" title="Charger une liste">📥 Import</button>
+              <input type="file" ref="fileInputImport" @change="onFichierImportSelectionne" accept=".json" style="display: none;" />
+            </div>
+          </div>
         </header>
         
         <div class="workspace-graines">
@@ -214,7 +227,6 @@
                     <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
                       <span class="badge">{{ graine.type }}</span>
                       <span :class="['badge', graine.est_plant ? 'badge-plant' : 'badge-seed']">{{ graine.est_plant ? '🌿 Plant' : '🌰 Graine' }}</span>
-                      
                       <span v-if="estPerimee(graine.peremption)" class="badge badge-perime">⚠️ Périmé</span>
                       <span v-else-if="graine.peremption" class="badge badge-date">⏳ Exp: {{ formatMoisAnnee(graine.peremption) }}</span>
                     </div>
@@ -680,13 +692,25 @@
               <div v-if="meteoErreur" class="help-text mt-5">❌ Impossible de trouver cette ville.</div>
             </div>
           </div>
+
+          <div class="carte-reglage carte-donnees">
+            <div class="reglage-header"><div class="reglage-icone">💾</div><h3>Sauvegarde & Restauration</h3></div>
+            <div class="reglage-body">
+              <p class="reglage-desc">Exportez l'intégralité de votre potager (graines, plan, godets, pots) ou restaurez une sauvegarde globale.</p>
+              <div style="display:flex; gap:10px; margin-top: 15px;" class="flex-col-mobile">
+                <button class="btn-submit full-width-mobile" style="flex:1; display:flex; justify-content:center; align-items:center; gap:8px;" @click="exporterTout">📤 Exporter tout</button>
+                <button class="btn-cancel full-width-mobile" style="flex:1; display:flex; justify-content:center; align-items:center; gap:8px; border-color:var(--text-main); color:var(--text-main);" @click="$refs.fileInputImportGlobal.click()">📥 Importer (Restaurer)</button>
+                <input type="file" ref="fileInputImportGlobal" @change="onFichierImportGlobalSelectionne" accept=".json" style="display: none;" />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </main>
 
     <div v-if="afficherModalArbre" class="modal-overlay" @click.self="afficherModalArbre = false">
       <div class="modal">
-        <h3>Placer un arbre 🌳</h3>
+        <h3>Placer un objet 🏡</h3>
         <form @submit.prevent="validerAjoutArbre">
           <div class="form-group">
             <label>Taille de l'arbre sur la carte</label>
@@ -769,6 +793,50 @@
       </div>
     </div>
     
+    <div v-if="afficherModalImport" class="modal-overlay" @click.self="afficherModalImport = false">
+      <div class="modal">
+        <h3>Confirmer l'import 📥</h3>
+        <p class="modal-desc">Vous êtes sur le point d'ajouter <strong>{{ donneesImportEnAttente.length }}</strong> élément(s) à votre inventaire.</p>
+        
+        <div class="liste-import-preview">
+          <div v-for="(g, index) in donneesImportEnAttente.slice(0, 10)" :key="index" style="display:flex; align-items:center; gap:8px; margin-bottom: 5px;">
+            <span>{{ g.icone || '🌱' }}</span>
+            <strong>{{ g.nom || 'Inconnu' }}</strong>
+            <span style="font-size: 0.8em; color: gray;">- {{ g.type }}</span>
+          </div>
+          <div v-if="donneesImportEnAttente.length > 10" style="text-align: center; color: gray; font-style: italic; font-size: 0.8em; margin-top: 10px;">
+            ... et {{ donneesImportEnAttente.length - 10 }} autres
+          </div>
+        </div>
+
+        <div class="actions block-mobile mt-30">
+          <button type="button" class="btn-cancel full-width" @click="afficherModalImport = false">Annuler</button>
+          <button type="button" class="btn-submit full-width" @click="validerImport">Valider l'import</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="afficherModalImportGlobal" class="modal-overlay" @click.self="afficherModalImportGlobal = false">
+      <div class="modal">
+        <h3>Restauration globale 📥</h3>
+        <p class="modal-desc" style="color: #d32f2f; font-weight: bold;">⚠️ Attention, cette action va effacer et remplacer TOUTES vos données actuelles par celles de la sauvegarde.</p>
+        
+        <div class="liste-import-preview">
+          <ul>
+            <li><strong>Graines & Plants :</strong> {{ donneesImportGlobalEnAttente.grainotheque?.length || 0 }}</li>
+            <li><strong>Bacs & Éléments :</strong> {{ donneesImportGlobalEnAttente.parcelles?.length || 0 }}</li>
+            <li><strong>Godets :</strong> {{ donneesImportGlobalEnAttente.godets?.length || 0 }}</li>
+            <li><strong>Pots :</strong> {{ donneesImportGlobalEnAttente.pots?.length || 0 }}</li>
+          </ul>
+        </div>
+
+        <div class="actions block-mobile mt-30">
+          <button type="button" class="btn-cancel full-width" @click="afficherModalImportGlobal = false">Annuler</button>
+          <button type="button" class="btn-submit btn-danger full-width" @click="validerImportGlobal">Écraser et Restaurer</button>
+        </div>
+      </div>
+    </div>
+
     <div v-if="afficherModalGodet" class="modal-overlay" @click.self="afficherModalGodet = false">
       <div class="modal">
         <h3>{{ modeEditionGodet ? 'Modifier ce godet' : 'Nouveaux semis en godet' }}</h3>
@@ -896,7 +964,7 @@
         <p class="modal-desc" style="text-align: center;">{{ confirmMessage }}</p>
         <div class="actions" style="justify-content: center;">
           <button type="button" class="btn-cancel" @click="annulerConfirmation">Annuler</button>
-          <button type="button" class="btn-submit btn-danger" @click="validerConfirmation">Oui, supprimer</button>
+          <button type="button" class="btn-submit btn-danger" @click="validerConfirmation">Oui</button>
         </div>
       </div>
     </div>
@@ -1094,6 +1162,129 @@ const analyseAssociation = computed(() => {
   return { fav: [...new Set(favs)], defav: [...new Set(defavs)] }; 
 });
 
+const fileInputImport = ref(null);
+const afficherModalImport = ref(false);
+const donneesImportEnAttente = ref([]);
+
+function exporterGrainotheque() {
+  const dataStr = JSON.stringify(grainotheque.value, null, 2);
+  const blob = new Blob([dataStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const dateStr = new Date().toISOString().split('T')[0];
+  
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `grainotheque_export_${dateStr}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function onFichierImportSelectionne(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      if (Array.isArray(parsed)) {
+        donneesImportEnAttente.value = parsed;
+        afficherModalImport.value = true;
+      } else {
+        demanderConfirmation("Le fichier sélectionné n'est pas un tableau JSON valide.", null);
+      }
+    } catch (err) {
+      demanderConfirmation("Erreur lors de la lecture du fichier JSON. Est-il corrompu ?", null);
+    }
+    if (fileInputImport.value) fileInputImport.value.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function validerImport() {
+  const nouvellesGraines = donneesImportEnAttente.value.map(g => ({
+    ...g,
+    id: Date.now() + Math.random() 
+  }));
+  
+  grainotheque.value = [...(grainotheque.value || []), ...nouvellesGraines];
+  afficherModalImport.value = false;
+  donneesImportEnAttente.value = [];
+}
+
+// --- NOUVEAU: LOGIQUE IMPORT/EXPORT GLOBAL ---
+const fileInputImportGlobal = ref(null);
+const afficherModalImportGlobal = ref(false);
+const donneesImportGlobalEnAttente = ref(null);
+
+function exporterTout() {
+  const exportData = {
+    grainotheque: grainotheque.value,
+    parcelles: parcelles.value,
+    godets: godets.value,
+    pots: pots.value,
+    version: "1.0",
+    date: new Date().toISOString()
+  };
+  const dataStr = JSON.stringify(exportData, null, 2);
+  const blob = new Blob([dataStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const dateStr = new Date().toISOString().split('T')[0];
+  
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `mysecretgarden_backup_${dateStr}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function onFichierImportGlobalSelectionne(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      if (parsed.grainotheque !== undefined || parsed.parcelles !== undefined) {
+        donneesImportGlobalEnAttente.value = parsed;
+        afficherModalImportGlobal.value = true;
+      } else {
+        demanderConfirmation("Le fichier sélectionné n'est pas une sauvegarde valide My Secret Garden.", null);
+      }
+    } catch (err) {
+      demanderConfirmation("Erreur lors de la lecture du fichier de sauvegarde. Est-il corrompu ?", null);
+    }
+    if (fileInputImportGlobal.value) fileInputImportGlobal.value.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function validerImportGlobal() {
+  if (!donneesImportGlobalEnAttente.value) return;
+  
+  if (donneesImportGlobalEnAttente.value.grainotheque) grainotheque.value = donneesImportGlobalEnAttente.value.grainotheque;
+  if (donneesImportGlobalEnAttente.value.parcelles) parcelles.value = donneesImportGlobalEnAttente.value.parcelles;
+  if (donneesImportGlobalEnAttente.value.godets) godets.value = donneesImportGlobalEnAttente.value.godets;
+  if (donneesImportGlobalEnAttente.value.pots) pots.value = donneesImportGlobalEnAttente.value.pots;
+  
+  syncGraines(grainotheque.value);
+  syncParcelles(parcelles.value);
+  syncGodets(godets.value);
+  syncPots(pots.value);
+
+  afficherModalImportGlobal.value = false;
+  donneesImportGlobalEnAttente.value = null;
+  
+  recentrerTerrain(); 
+}
+// ---------------------------------------------
+
+
 const rechercheGraine = ref(''); const filtreTypeGraine = ref(''); const filtreStock = ref('tous'); 
 const grainesFiltrees = computed(() => { 
   if (!grainotheque.value) return []; 
@@ -1207,6 +1398,22 @@ onMounted(async () => {
 });
 
 const meteoInfo = ref(null); const meteoErreur = ref(false);
+
+const datePremierGel = computed(() => {
+  if (!meteoInfo.value || !meteoInfo.value.daily || !meteoInfo.value.daily.temperature_2m_min) return null;
+  const mins = meteoInfo.value.daily.temperature_2m_min;
+  const times = meteoInfo.value.daily.time;
+  for (let i = 0; i < mins.length; i++) {
+    if (mins[i] <= 0) {
+      const dateObj = new Date(times[i]);
+      const d = String(dateObj.getDate()).padStart(2, '0');
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      return `${d}/${m}`;
+    }
+  }
+  return null;
+});
+
 async function chargerMeteo() {
   if (!reglages.value.ville) { meteoErreur.value = false; meteoInfo.value = null; return; }
   try {
@@ -1215,7 +1422,8 @@ async function chargerMeteo() {
     const geoData = await geoRes.json();
     if (!geoData.results || geoData.results.length === 0) { meteoErreur.value = true; meteoInfo.value = null; return; }
     const { latitude, longitude, name } = geoData.results[0];
-    const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum&current_weather=true&timezone=auto`);
+    
+    const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum&current_weather=true&timezone=auto&forecast_days=10`);
     const wData = await wRes.json();
     meteoInfo.value = wData; meteoInfo.value.cityName = name; meteoErreur.value = false;
   } catch (e) { meteoErreur.value = true; meteoInfo.value = null; }
@@ -1629,6 +1837,13 @@ body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-a
 .badge-notif-mini { position: absolute; top: 10px; right: 25px; background: #f44336; width: 8px; height: 8px; border-radius: 50%; }
 
 .menu-bottom-actions { display: flex; flex-direction: column; gap: 10px; margin-top: auto;}
+
+/* ALERTE GEL MENU NOUVEAU CSS */
+.alerte-gel-menu { background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9; padding: 12px; border-radius: 6px; font-size: 0.85em; font-weight: bold; display: flex; align-items: center; gap: 8px; text-align: center; justify-content: center; animation: pulseGel 2s infinite; }
+.sidebar.reduit .alerte-gel-menu { padding: 12px 0; justify-content: center; }
+.icone-gel { font-size: 1.2em; }
+@keyframes pulseGel { 0% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(33, 150, 243, 0); } 100% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0); } }
+
 .btn-ajouter-graine { padding: 14px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: transparent; color: var(--accent-gold); border: 1px solid var(--accent-gold); border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.95em; transition: all 0.2s;}
 .btn-ajouter-graine:hover { background: var(--accent-gold); color: var(--bg-sidebar); }
 
@@ -1643,7 +1858,7 @@ body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-a
 /* MODIFICATION COULEUR MODE HIVER */
 .workspace-terrain.mode-hiver { background-color: #8fa693; }
 
-/* ANIMATION NEIGE GLOBALE */
+/* ANIMATION NEIGE GLOBALE (CORRIGÉE AVEC BEFORE) */
 .workspace-terrain.mode-hiver::before { content: ''; position: absolute; top:0; left:0; width: 100%; height: 100%; pointer-events: none; z-index: 10; background-image: radial-gradient(rgba(255,255,255,0.9) 1px, transparent 2px), radial-gradient(rgba(255,255,255,0.8) 1px, transparent 2px); background-size: 50px 50px, 70px 70px; background-position: 0 0, 25px 25px; animation: neige 20s linear infinite; }
 @keyframes neige { from { background-position: 0 0, 25px 25px; } to { background-position: 500px 1000px, 725px 1000px; } }
 
@@ -1677,7 +1892,7 @@ body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-a
 .element-terrain.type-bac.en-cours-dessin .terre-interieure { background-color: rgba(62, 39, 35, 0.3); background-image: none; box-shadow: none;}
 .terre-interieure { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--soil-bg); border-radius: 2px; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); overflow: hidden; transition: background-color 0.5s; }
 
-/* TYPE: BORDURE */
+/* TYPE: BORDURE (Clôture) */
 .element-terrain.type-bordure { height: 12px; background: #8B5A2B; background-image: repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(0,0,0,0.1) 5px, rgba(0,0,0,0.1) 10px); border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.4); transform-origin: 0 50%; }
 
 /* TYPE: ARBRE & DECO */
@@ -1727,13 +1942,13 @@ body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-a
 @keyframes pulseRed { 0% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.5); border-color: #d32f2f; } 70% { box-shadow: 0 0 0 10px rgba(211, 47, 47, 0); border-color: var(--wood-border); } 100% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0); border-color: var(--wood-border); } }
 .indicateur-conflit { position: absolute; top: -12px; left: -12px; background: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 2px solid #d32f2f; z-index: 60; box-shadow: 0 2px 5px rgba(0,0,0,0.3); cursor: help;}
 
-/* MODALE DECO */
+/* MODALE DECO (Grille) */
 .grille-emojis-deco { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; background: #fafcfa; border: 1px solid var(--border-light); border-radius: 8px; padding: 15px; }
 .emoji-deco-item { font-size: 2.5rem; cursor: pointer; padding: 10px; border-radius: 12px; transition: 0.2s; border: 2px solid transparent; }
 .emoji-deco-item:hover { background: #e0e5e2; transform: scale(1.1); }
 .emoji-deco-item.actif { background: white; border-color: var(--accent-gold); box-shadow: 0 4px 10px rgba(0,0,0,0.1); transform: scale(1.1); }
 
-/* TIMELINE HISTORIQUE */
+/* TIMELINE HISTORIQUE (PANNEAU DROIT) */
 .panel-historique { width: 320px; background: white; border-left: 1px solid var(--border-light); z-index: 120; display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: absolute; right: 0; top: 0; height: 100%; box-shadow: -5px 0 20px rgba(0,0,0,0.05);}
 .panel-historique.ouvert { transform: translateX(0); }
 .ph-header { padding: 20px; border-bottom: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center; background: #fafcfa;}
@@ -1752,8 +1967,10 @@ body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-a
 .badge-saison-petit { font-size: 0.65em; font-weight: 700; padding: 2px 6px; border-radius: 4px; display: inline-block; text-transform: uppercase; align-self: flex-start; color: white;}
 .badge-saison-petit.ete { background: #f57f17; }
 .badge-saison-petit.hiver { background: #0288d1; }
+/* ARCHIVE HISTORIQUE */
 .plante-archivee { text-decoration: line-through; opacity: 0.6; }
 .badge-saison-petit.archive { background: #9e9e9e; }
+
 
 /* AUTRES VUES (COMMUNES) */
 .header-epure { margin-bottom: 30px; border-bottom: 1px solid var(--border-light); padding-bottom: 20px;}
@@ -1776,6 +1993,7 @@ body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-a
 .carte-graine { background: white; border-radius: 12px; border: 1px solid var(--border-light); box-shadow: 0 4px 12px rgba(0,0,0,0.03); transition: all 0.2s; position: relative; overflow: hidden;}
 .carte-graine:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); border-color: #cbd4cf;}
 
+/* CARTE PERIMÉE NOUVEAU CSS */
 .carte-graine.is-perimee { background-color: #fffafb; border-color: #ffcdd2; }
 .carte-graine.is-perimee .icone-graine { filter: grayscale(1); opacity: 0.6; }
 .badge-perime { background-color: #ffebee; color: #c62828; border-color: #ffcdd2; font-weight: 600; }
@@ -1925,6 +2143,7 @@ body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-a
 .carte-reglage { background: white; border-radius: 12px; border: 1px solid var(--border-light); overflow: hidden;}
 .carte-discord { border-top: 4px solid #5865F2; } 
 .carte-localisation { border-top: 4px solid #03a9f4; }
+.carte-donnees { border-top: 4px solid #4caf50; } 
 .reglage-header { background: #fafcfa; padding: 20px; border-bottom: 1px solid var(--border-light); display: flex; align-items: center; gap: 15px;}
 .reglage-icone { font-size: 1.8em; }
 .reglage-header h3 { margin: 0; font-size: 1.2em; color: var(--text-main); font-weight: 600;}
@@ -1968,11 +2187,16 @@ input:focus, select:focus { border-color: var(--accent-gold); outline: none; bac
 .btn-cancel { background: transparent; color: var(--text-muted); padding: 10px 16px; border: 1px solid var(--border-light); border-radius: 6px; cursor: pointer; font-weight: 500;}
 .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* MODALE DE CONFIRMATION (NOUVEAU) */
+/* MODALE DE CONFIRMATION */
 .modal-confirm { text-align: center; width: 350px; padding: 25px; }
 .confirm-icon { font-size: 3em; margin-bottom: 10px; line-height: 1; }
 .btn-danger { background: #d32f2f; color: white; border: none; }
 .btn-danger:hover { background: #b71c1c; }
+
+/* LISTE IMPORT JSON */
+.liste-import-preview { max-height: 200px; overflow-y: auto; background: #fafcfa; border: 1px solid var(--border-light); border-radius: 8px; padding: 10px; margin-bottom: 20px; }
+.liste-import-preview ul { margin: 0; padding-left: 20px; color: var(--text-main); }
+.liste-import-preview li { margin-bottom: 8px; }
 
 .liste-gestion-plantes { display: flex; flex-direction: column; gap: 10px; }
 .item-gestion { display: flex; justify-content: space-between; align-items: center; background: #fafcfa; border: 1px solid var(--border-light); padding: 10px 15px; border-radius: 8px;}
