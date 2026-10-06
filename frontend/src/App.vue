@@ -1,160 +1,154 @@
 <template>
   <div class="layout">
-    <nav :class="['sidebar', { reduit: menuReduit }]">
-      <button class="btn-toggle-menu hide-on-mobile" @click="menuReduit = !menuReduit">{{ menuReduit ? '›' : '‹' }}</button>
-      <button class="btn-close-mobile show-on-mobile" @click="menuMobileOuvert = false">×</button>
+    <div v-if="needsLogin" class="login-screen">
+      <form class="modal login-card" @submit.prevent="login">
+        <div class="login-language">
+          <button v-for="l in LOCALES" :key="l" type="button" :class="['lang-option', { active: locale === l }]" @click="setLocale(l)">{{ l.toUpperCase() }}</button>
+        </div>
+        <img :src="logoImg" alt="My Secret Garden" class="login-logo" />
+        <h3>My Secret Garden</h3>
+        <p class="modal-desc">{{ t('login.subtitle') }}</p>
+        <div class="form-group">
+          <label>{{ t('login.username') }}</label>
+          <input type="text" v-model="loginForm.username" autocomplete="username" autofocus />
+        </div>
+        <div class="form-group mt-15">
+          <label>{{ t('login.password') }}</label>
+          <input type="password" v-model="loginForm.password" autocomplete="current-password" />
+        </div>
+        <div v-if="loginError" class="help-text">{{ loginError }}</div>
+        <button type="submit" class="btn-submit mt-15" style="width: 100%;" :disabled="!loginForm.username || !loginForm.password || loggingIn">{{ loggingIn ? t('login.signing_in') : t('login.sign_in') }}</button>
+      </form>
+    </div>
 
-      <div class="logo-container" :class="{ 'logo-reduit': menuReduit }">
-        <img :src="logoImg" alt="My Secret Garden Logo" class="logo-img" />
-        <h1 v-if="!menuReduit" class="titre-sensuel">My Secret Garden</h1>
+    <nav :class="['sidebar', { collapsed: menuCollapsed, 'mobile-open': mobileMenuOpen }]">
+      <button class="btn-toggle-menu hide-on-mobile" @click="menuCollapsed = !menuCollapsed" :title="menuCollapsed ? t('nav.expand') : t('nav.collapse')"><Icon :name="menuCollapsed ? 'expand' : 'collapse'" :size="18" /></button>
+      <button class="btn-close-mobile" @click="mobileMenuOpen = false" :title="t('nav.close')"><Icon name="close" :size="18" /></button>
+
+      <div class="logo-container">
+        <img :src="logoImg" alt="My Secret Garden" class="logo-img" />
+        <h1 v-if="!menuCollapsed" class="brand-title">My Secret Garden</h1>
       </div>
-      
+
       <ul>
-        <li :class="{ actif: vueActive === 'potager' }" @click="changerVue('potager')" title="Mon Potager">
-          <span class="icone">◩</span> <span class="texte-menu" v-if="!menuReduit">Plan du Potager</span>
-        </li>
-        <li :class="{ actif: vueActive === 'grainotheque' }" @click="changerVue('grainotheque')" title="La Grainothèque">
-          <span class="icone">❦</span> <span class="texte-menu" v-if="!menuReduit">La Grainothèque</span>
-        </li>
-        <li :class="{ actif: vueActive === 'godets' }" @click="changerVue('godets')" title="Mes Godets">
-          <span class="icone">🌱</span> <span class="texte-menu" v-if="!menuReduit">Mes Godets</span>
-        </li>
-        <li :class="{ actif: vueActive === 'pots' }" @click="changerVue('pots')" title="Plantes en pots">
-          <span class="icone">🪴</span> <span class="texte-menu" v-if="!menuReduit">Plantes en pots</span>
-        </li>
-        <li :class="{ actif: vueActive === 'conseils' }" @click="changerVue('conseils')" title="Associations">
-          <span class="icone">🤝</span> <span class="texte-menu" v-if="!menuReduit">Associations</span>
-        </li>
-        <li :class="{ actif: vueActive === 'rotation' }" @click="changerVue('rotation')" title="Rotation des cultures">
-          <span class="icone">🔄</span> <span class="texte-menu" v-if="!menuReduit">Rotation</span>
-        </li>
-        <li :class="{ actif: vueActive === 'notifications' }" @click="changerVue('notifications')" title="Notifications">
-          <span class="icone">🔔</span> <span class="texte-menu" v-if="!menuReduit">Notifications</span>
-          <span v-if="totalAlertes > 0 && !menuReduit" class="badge-notif">{{ totalAlertes }}</span>
-          <span v-if="totalAlertes > 0 && menuReduit" class="badge-notif-mini"></span>
-        </li>
-        <li :class="{ actif: vueActive === 'recapitulatif' }" @click="changerVue('recapitulatif')" title="Récapitulatif">
-          <span class="icone">⊞</span> <span class="texte-menu" v-if="!menuReduit">Vue d'ensemble</span>
-        </li>
-        <li :class="{ actif: vueActive === 'reglages' }" @click="changerVue('reglages')" title="Réglages">
-          <span class="icone">⚙</span> <span class="texte-menu" v-if="!menuReduit">Réglages</span>
+        <li v-for="item in NAV" :key="item.view" :class="{ active: activeView === item.view }" @click="showView(item.view)" :title="t(`nav.${item.view}`)">
+          <span class="icon"><Icon :name="item.icon" /></span> <span class="menu-text" v-if="!menuCollapsed">{{ t(`nav.${item.view}`) }}</span>
+          <template v-if="item.view === 'notifications' && alertCount > 0">
+            <span v-if="!menuCollapsed" class="badge-notif">{{ alertCount }}</span>
+            <span v-else class="badge-notif-mini"></span>
+          </template>
         </li>
       </ul>
-      
-      <div class="menu-bottom-actions">
-        <div v-if="datePremierGel" class="alerte-gel-menu" :title="menuReduit ? 'Risque de gel le ' + datePremierGel : ''">
-          <span class="icone-gel">❄️</span>
-          <span v-if="!menuReduit">ATTENTION GEL LE {{ datePremierGel }}</span>
+
+      <div class="sidebar-actions">
+        <div v-if="frostDate" class="frost-alert" :title="menuCollapsed ? t('nav.frost_on', { date: frostDate }) : ''">
+          <span class="frost-icon"><Icon name="frost" :size="16" /></span>
+          <span v-if="!menuCollapsed">{{ t('nav.frost_on', { date: frostDate }) }}</span>
         </div>
-
-        <button v-if="totalAlertesArrosage > 0" class="btn-arroser-tout" @click="declencherArrosageGlobal()" title="Arroser tous les éléments assoiffés">
-          <span class="icone">💦</span> <span v-if="!menuReduit">Tout arroser ({{ totalAlertesArrosage }})</span>
+        <button v-if="thirstyCount > 0" class="btn-water-all" @click="waterEverything()" :title="t('nav.water_all_title')">
+          <span class="icon"><Icon name="water" :size="18" /></span> <span v-if="!menuCollapsed">{{ t('nav.water_all', { n: thirstyCount }) }}</span>
         </button>
-
-        <button class="btn-ajouter-graine" @click="ouvrirModalGraine()" title="Ajouter une semence">
-          <span class="icone">+</span> <span v-if="!menuReduit">Nouveau végétal</span>
+        <button class="btn-add-plant" @click="openSeedModal()" :title="t('seeds.new')">
+          <span class="icon"><Icon name="plus" :size="18" /></span> <span v-if="!menuCollapsed">{{ t('seeds.new') }}</span>
         </button>
       </div>
     </nav>
-    
-    <button class="btn-hamburger show-on-mobile" @click="menuMobileOuvert = true">☰</button>
-    <div v-if="menuMobileOuvert" class="mobile-overlay" @click="menuMobileOuvert = false"></div>
+
+    <button class="btn-hamburger" @click="mobileMenuOpen = true" :title="t('nav.open')"><Icon name="menu" /></button>
+    <div v-if="mobileMenuOpen" class="mobile-overlay" @click="mobileMenuOpen = false"></div>
 
     <main class="content">
-      
-      <div v-if="vueActive === 'potager'" class="vue-potager">
-        <div :class="['workspace-terrain', `mode-${saisonActive}`]" @mousedown="commencerAction" @mousemove="actionEnCours" @mouseup="terminerAction" @mouseleave="terminerAction" @touchstart.passive="commencerAction" @touchmove.passive="actionEnCours" @touchend="terminerAction" @wheel.prevent="gererZoom">
-          
-          <div v-if="pluieGlobaleActive" class="pluie-globale-overlay"></div>
-          <div v-if="saisonActive === 'hiver'" class="neige-globale-overlay"></div>
+      <div v-if="defaultCredentials && !needsLogin" class="security-banner">
+        ⚠️ <span v-html="t('security.default_credentials_html')"></span>
+      </div>
 
-          <div class="hud-left toolbar-vertical">
-            <button :class="['btn-tool-v', { actif: outilActif === 'main' }]" @click="outilActif = 'main'" title="Naviguer (Glisser la carte)">⚲</button>
-            <div class="separateur-v"></div>
-            <button :class="['btn-tool-v', { actif: outilActif === 'bac' }]" @click="outilActif = 'bac'" title="Tracer un bac de culture">⬚</button>
-            <button :class="['btn-tool-v', { actif: outilActif === 'bordure' }]" @click="outilActif = 'bordure'" title="Tracer une bordure en bois (Diagonales possibles)">➖</button>
-            <button :class="['btn-tool-v', { actif: outilActif === 'arbre' }]" @click="outilActif = 'arbre'" title="Placer un arbre (Clic simple sur la carte)">🌳</button>
-            <button :class="['btn-tool-v', { actif: outilActif === 'deco' }]" @click="outilActif = 'deco'" title="Placer une décoration (Clic simple sur la carte)">🦆</button>
-            <div class="separateur-v"></div>
-            
-            <button class="btn-tool-v arrosoir-global-btn" @click="declencherArrosageGlobal" title="Arroser tout le potager">🚿</button>
-            <div class="separateur-v hide-on-mobile-small"></div>
+      <!-- GARDEN PLAN -->
+      <div v-if="activeView === 'garden'" class="view-garden">
+        <div class="workspace canvas-grass" @mousedown="startAction" @mousemove="moveAction" @mouseup="endAction" @mouseleave="endAction" @touchstart.passive="startAction" @touchmove.passive="moveAction" @touchend="endAction" @wheel.prevent="onWheel">
+          <div v-if="globalRain" class="global-rain-overlay"></div>
 
-            <button class="btn-tool-v hide-on-mobile-small" @click="zoomer(0.1)" title="Zoomer">➕</button>
-            <span class="zoom-text-v hide-on-mobile-small">{{ Math.round(zoom * 100) }}%</span>
-            <button class="btn-tool-v hide-on-mobile-small" @click="zoomer(-0.1)" title="Dézoomer">➖</button>
-            <button class="btn-tool-v hide-on-mobile-small" @click="recentrerTerrain" title="Retourner au centre">⌖</button>
-            <div class="separateur-v"></div>
-
-            <button :class="['btn-tool-v', 'btn-saison-v', saisonActive]" @click="basculerSaison" title="Bascule Été/Hiver">
-              {{ saisonActive === 'ete' ? '☀️' : '❄️' }}
-            </button>
+          <div class="toolbar">
+            <button :class="['tool-btn', { active: activeTool === 'hand' }]" @click="activeTool = 'hand'" :title="t('garden.tools.hand')"><Icon name="hand" /></button>
+            <div class="tool-divider"></div>
+            <button :class="['tool-btn', { active: activeTool === 'bed' }]" @click="activeTool = 'bed'" :title="t('garden.tools.bed')"><Icon name="bed" /></button>
+            <button :class="['tool-btn', { active: activeTool === 'border' }]" @click="activeTool = 'border'" :title="t('garden.tools.border')"><Icon name="fence" /></button>
+            <button :class="['tool-btn', { active: activeTool === 'tree' }]" @click="activeTool = 'tree'" :title="t('garden.tools.tree')"><Icon name="tree" /></button>
+            <button :class="['tool-btn', { active: activeTool === 'decor' }]" @click="activeTool = 'decor'" :title="t('garden.tools.decor')"><Icon name="sparkle" /></button>
+            <div class="tool-divider"></div>
+            <button class="tool-btn water-all-tool" @click="waterEverything" :title="t('garden.tools.water_all')"><Icon name="water" /></button>
+            <div class="tool-divider hide-on-mobile-small"></div>
+            <button class="tool-btn hide-on-mobile-small" @click="zoomBy(0.1)" :title="t('garden.tools.zoom_in')"><Icon name="plus" /></button>
+            <span class="zoom-label hide-on-mobile-small">{{ Math.round(zoom * 100) }}%</span>
+            <button class="tool-btn hide-on-mobile-small" @click="zoomBy(-0.1)" :title="t('garden.tools.zoom_out')"><Icon name="minus" /></button>
+            <button class="tool-btn hide-on-mobile-small" @click="recenter" :title="t('garden.tools.recenter')"><Icon name="target" /></button>
           </div>
 
-          <div ref="terrainRef" class="terrain-infini" :style="{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }">
-            <div class="centre-absolu">+ Point Zéro</div>
-            
-            <div v-for="p in parcelles" :key="p.id" 
-                 :class="['element-terrain', `type-${p.type || 'bac'}`, `taille-${p.taille || 'Moyen'}`, { 'en-mouvement': draggedParcelle && draggedParcelle.id === p.id, 'conflit-actif': aConflit(p) }]" 
-                 :style="styleTerrainElement(p)" 
-                 @mousedown.stop="commencerDragParcelle($event, p)" @touchstart.stop="commencerDragParcelle($event, p)">
-              
-              <template v-if="!p.type || p.type === 'bac'">
-                <div v-if="p.arrosageEnCours" class="pluie-container"></div>
-                <div class="terre-interieure">
-                  <div class="grille-plantes" :style="calculerGrillePlantes(p)">
-                    <div v-for="(plante, index) in obtenirPlantesUnitaires(p)" :key="index" class="plante-visuelle" :title="plante.nom">{{ plante.icone }}</div>
+          <div ref="canvasRef" class="canvas" :style="{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }">
+            <div class="origin-marker">{{ t('garden.origin') }}</div>
+
+            <div v-for="p in plots" :key="p.id"
+                 :class="['plot', `type-${p.type}`, `size-${p.size || 'medium'}`, { dragging: draggedPlot && draggedPlot.id === p.id, 'has-conflict': hasConflict(p) }]"
+                 :style="plotStyle(p)"
+                 @mousedown.stop="startDrag($event, p)" @touchstart.stop="startDrag($event, p)">
+
+              <template v-if="p.type === 'bed'">
+                <div v-if="p._watering" class="rain-overlay"></div>
+                <div class="soil">
+                  <div class="plant-grid" :style="plantGridStyle(p)">
+                    <div v-for="(plant, index) in plantDots(p)" :key="index" class="plant-dot" :title="plant.name">{{ plant.icon }}</div>
                   </div>
                 </div>
-                <span class="label-dim"><strong v-if="p.nom">{{ p.nom }} • </strong>{{ p.dimX }} x {{ p.dimY }} cm</span>
-                <div v-if="aConflit(p)" class="indicateur-conflit" title="Association défavorable dans ce bac !">⚠️</div>
-                <div v-if="bacBesoinEau(p) && !p.arrosageEnCours" class="indicateur-soif" title="Besoin d'eau !">💧</div>
-                
-                <div class="resize-handle" @mousedown.stop="commencerResize($event, p)" @touchstart.stop="commencerResize($event, p)"></div>
+                <span class="plot-label"><strong v-if="p.name">{{ p.name }} • </strong>{{ p.size_x_cm }} × {{ p.size_y_cm }} cm</span>
+                <div v-if="hasConflict(p)" class="conflict-badge" :title="t('garden.conflict')">⚠️</div>
+                <div v-if="bedNeedsWater(p) && !p._watering" class="thirst-badge" :title="t('garden.thirsty')">💧</div>
+                <div class="resize-handle" @mousedown.stop="startResize($event, p)" @touchstart.stop="startResize($event, p)"></div>
               </template>
 
-              <template v-else-if="p.type === 'deco'">
-                <span class="icone-deco">{{ p.icone }}</span>
-              </template>
-              
-              <template v-else-if="p.type === 'bordure'">
-                <div class="resize-handle" @mousedown.stop="commencerResize($event, p)" @touchstart.stop="commencerResize($event, p)"></div>
+              <template v-else-if="p.type === 'decor'">
+                <span class="decor-icon">{{ p.icon }}</span>
               </template>
 
-              <div class="parcelle-actions-container" :style="styleTooltip(p)">
-                <button v-if="!p.type || p.type === 'bac' || p.type === 'arbre'" class="btn-action-parcelle btn-arroser" @click.stop="arroserBac(p)" title="J'ai arrosé !">💦</button>
-                <button v-if="!p.type || p.type === 'bac'" class="btn-action-parcelle btn-planter" @click.stop="ouvrirModalPlantation(p)" title="Planter ici">🌱</button>
-                <button v-if="!p.type || p.type === 'bac'" class="btn-action-parcelle btn-gerer" @click.stop="ouvrirModalGestionBac(p)" title="Gérer ce bac">📋</button>
-                <button v-if="!p.type || p.type === 'bac'" class="btn-action-parcelle btn-historique" @click.stop="ouvrirHistorique(p)" title="Voir l'historique">🕒</button>
-                <button class="btn-action-parcelle btn-supprimer" @click.stop="supprimerParcelle(p.id)" title="Supprimer">×</button>
+              <template v-else-if="p.type === 'border'">
+                <div class="resize-handle" @mousedown.stop="startResize($event, p)" @touchstart.stop="startResize($event, p)"></div>
+              </template>
+
+              <div class="plot-actions" :style="actionsStyle(p)">
+                <template v-if="p.type === 'bed'">
+                  <button class="plot-action btn-water" @click.stop="waterBed(p)" :title="t('garden.actions.water')">💦</button>
+                  <button class="plot-action btn-plant" @click.stop="openPlantingModal(p)" :title="t('garden.actions.plant')">🌱</button>
+                  <button class="plot-action btn-manage" @click.stop="openManageBed(p)" :title="t('garden.actions.manage')">📋</button>
+                  <button class="plot-action btn-history" @click.stop="openHistory(p)" :title="t('garden.actions.history')">🕒</button>
+                </template>
+                <button class="plot-action btn-delete" @click.stop="deletePlot(p.id)" :title="t('common.delete')">×</button>
               </div>
             </div>
-            
-            <div v-if="parcelleEnCours" :class="['element-terrain', 'en-cours-dessin', `type-${parcelleEnCours.type}`]" :style="styleTerrainElement(parcelleEnCours)">
-              <div v-if="!parcelleEnCours.type || parcelleEnCours.type === 'bac'" class="terre-interieure"></div>
-              <span class="label-dim" v-if="!parcelleEnCours.type || parcelleEnCours.type === 'bac'">{{ parcelleEnCours.dimX }} x {{ parcelleEnCours.dimY }} cm</span>
+
+            <div v-if="drawingPlot" :class="['plot', 'drawing', `type-${drawingPlot.type}`]" :style="plotStyle(drawingPlot)">
+              <template v-if="drawingPlot.type === 'bed'">
+                <div class="soil"></div>
+                <span class="plot-label">{{ drawingPlot.size_x_cm }} × {{ drawingPlot.size_y_cm }} cm</span>
+              </template>
             </div>
           </div>
         </div>
 
-        <aside :class="['panel-historique', { 'ouvert': parcelleHistoriqueSelectionnee }]">
-          <div class="ph-header">
-            <h3>Chronologie du bac</h3>
-            <button class="btn-fermer-ph" @click="fermerHistorique">×</button>
+        <aside :class="['history-panel', { open: historyPlot }]">
+          <div class="panel-header">
+            <h3>{{ t('garden.history.title') }}</h3>
+            <button class="btn-close-panel" @click="closeHistory">×</button>
           </div>
-          <div class="ph-content">
-            <div v-if="historiqueParcelle.length === 0" class="etat-vide-petit">Aucune plantation enregistrée.</div>
+          <div class="panel-body">
+            <div v-if="historyGroups.length === 0" class="empty-state-small">{{ t('garden.history.empty') }}</div>
             <div class="timeline" v-else>
-              <div v-for="groupe in historiqueParcelle" :key="groupe.date" class="tl-item">
-                <div class="tl-date">{{ groupe.formatted }}</div>
-                <div class="tl-plantes">
-                  <div v-for="(pl, i) in groupe.plantes" :key="i" class="tl-plante">
-                    <span class="tl-icone" :style="pl.active ? '' : 'opacity:0.5; filter:grayscale(1);'">{{ pl.icone }}</span>
+              <div v-for="group in historyGroups" :key="group.date" class="tl-item">
+                <div class="tl-date">{{ group.label }}</div>
+                <div class="tl-plants">
+                  <div v-for="(pl, i) in group.plants" :key="i" class="tl-plant">
+                    <span class="tl-icon" :style="pl.active ? '' : 'opacity:0.5; filter:grayscale(1);'">{{ pl.icon }}</span>
                     <div class="tl-info">
-                      <span :class="['tl-nom', { 'plante-archivee': !pl.active }]">{{ pl.nom }} <b>(x{{ pl.quantite }})</b></span>
-                      <div style="display:flex; gap: 6px; margin-top: 4px;">
-                        <span :class="['badge-saison-petit', pl.saison]">{{ pl.saison === 'ete' ? '☀️ Été' : '❄️ Hiver' }}</span>
-                        <span v-if="!pl.active" class="badge-saison-petit archive" :title="'Récolté/Retiré le ' + pl.date_retrait">Récolté</span>
+                      <span :class="['tl-name', { 'plant-archived': !pl.active }]">{{ pl.name }} <b>(x{{ pl.quantity }})</b></span>
+                      <div v-if="!pl.active" style="display:flex; gap: 6px; margin-top: 4px;">
+                        <span class="badge-small archive" :title="t('garden.history.removed_on', { date: formatMonthYear(pl.removed_on) })">{{ t('garden.history.harvested') }}</span>
                       </div>
                     </div>
                   </div>
@@ -165,130 +159,129 @@
         </aside>
       </div>
 
-      <div v-if="vueActive === 'grainotheque'" class="vue-grainotheque vue-scrollable">
-        <header class="header-epure flex-between block-mobile">
+      <!-- SEED LIBRARY -->
+      <div v-if="activeView === 'seeds'" class="view-scroll">
+        <header class="page-header flex-between block-mobile">
           <div>
-            <h2>Inventaire des semences</h2>
-            <p class="sous-titre">Gérez vos variétés, leurs cycles, besoins en sol et péremptions.</p>
-            <div class="legende-possession mt-15">
-              <span class="info-bulle">💡 <b>Astuce :</b> Vous pouvez ajouter n'importe quelle graine à l'encyclopédie. Cliquez sur le bouton <b>"🛒 À acheter"</b> ou <b>"📦 En stock"</b> d'une carte pour indiquer si vous la possédez physiquement.</span>
+            <h2>{{ t('seeds.title') }}</h2>
+            <p class="subtitle">{{ t('seeds.subtitle') }}</p>
+            <div class="mt-15">
+              <span class="tip-box" v-html="t('seeds.tip_html')"></span>
             </div>
           </div>
           <div style="display:flex; flex-direction:column; gap:10px; width: 220px;" class="full-width mt-mobile">
-            <button class="btn-submit full-width" @click="ouvrirModalGraine()">+ Nouveau végétal</button>
+            <button class="btn-submit full-width" @click="openSeedModal()">+ {{ t('seeds.new') }}</button>
             <div style="display:flex; gap:10px;">
-              <button class="btn-cancel" style="flex:1; padding: 8px; font-size: 0.85em; display:flex; justify-content:center; align-items:center; gap:5px;" @click="exporterGrainotheque" title="Sauvegarder la liste sur votre ordinateur">📤 Export</button>
-              <button class="btn-cancel" style="flex:1; padding: 8px; font-size: 0.85em; display:flex; justify-content:center; align-items:center; gap:5px;" @click="$refs.fileInputImport.click()" title="Charger une liste">📥 Import</button>
-              <input type="file" ref="fileInputImport" @change="onFichierImportSelectionne" accept=".json" style="display: none;" />
+              <button class="btn-cancel" style="flex:1; padding: 8px; font-size: 0.85em;" @click="exportSeeds" :title="t('seeds.export_title')">📤 {{ t('common.export') }}</button>
+              <button class="btn-cancel" style="flex:1; padding: 8px; font-size: 0.85em;" @click="$refs.seedImportInput.click()" :title="t('seeds.import_title')">📥 {{ t('common.import') }}</button>
+              <input type="file" ref="seedImportInput" @change="onSeedFileSelected" accept=".json" style="display: none;" />
             </div>
           </div>
         </header>
-        
-        <div class="workspace-graines">
-          <div class="filtres-bar block-mobile">
+
+        <div class="section-block">
+          <div class="filter-bar block-mobile">
             <div class="form-group search-group full-width">
-              <span class="search-icon">🔍</span>
-              <input type="text" v-model="rechercheGraine" placeholder="Rechercher une variété..." />
+              <span class="search-icon"><Icon name="search" :size="18" /></span>
+              <input type="text" v-model="seedSearch" :placeholder="t('seeds.search')" />
             </div>
             <div class="form-group select-group full-width">
-              <select v-model="filtreTypeGraine">
-                <option value="">Tous les types botaniques</option>
-                <option v-for="t in typesPlantes" :key="t" :value="t">{{ t }}</option>
+              <select v-model="seedCategoryFilter">
+                <option value="">{{ t('seeds.all_categories') }}</option>
+                <option v-for="c in CATEGORIES" :key="c" :value="c">{{ t(`category.${c}`) }}</option>
               </select>
             </div>
             <div class="form-group select-group full-width mt-mobile">
-              <select v-model="filtreStock">
-                <option value="tous">Tous les états</option>
-                <option value="possede">📦 En stock</option>
-                <option value="acheter">🛒 À acheter</option>
+              <select v-model="seedStockFilter">
+                <option value="all">{{ t('seeds.all_states') }}</option>
+                <option value="in_stock">📦 {{ t('seeds.in_stock') }}</option>
+                <option value="to_buy">🛒 {{ t('seeds.to_buy') }}</option>
               </select>
             </div>
           </div>
 
-          <div class="grid-graines">
-            <div v-for="graine in grainesFiltrees" :key="graine.id" :class="['carte-graine', { 'is-perimee': estPerimee(graine.peremption) }]">
-              <div class="carte-actions">
-                <button class="btn-icon" @click="ouvrirModalGraine(graine)" title="Modifier">✎</button>
-                <button class="btn-icon rouge" @click="supprimerGraine(graine.id)" title="Supprimer">×</button>
+          <div class="card-grid">
+            <div v-for="seed in filteredSeeds" :key="seed.id" :class="['card', { 'is-expired': isExpired(seed.expiry) }]">
+              <div class="card-actions">
+                <button class="btn-icon" @click="openSeedModal(seed)" :title="t('common.edit')">✎</button>
+                <button class="btn-icon danger" @click="deleteSeed(seed.id)" :title="t('common.delete')">×</button>
               </div>
-              <div class="carte-contenu">
-                <div class="carte-top">
-                  <div class="icone-graine">{{ graine.icone }}</div>
-                  <div class="titre-graine">
-                    <div class="titre-avec-badge block-mobile-small">
-                      <h3>{{ graine.nom }}</h3>
+              <div class="card-body">
+                <div class="card-top">
+                  <div class="card-icon">{{ seed.icon }}</div>
+                  <div class="card-title">
+                    <div class="title-with-badge block-mobile-small">
+                      <h3>{{ seed.name }}</h3>
                       <div style="display:flex; gap:8px;">
-                        <button :class="['badge-action-possession', { 'possede': graine.en_possession }]" @click.stop="graine.en_possession = !graine.en_possession">
-                          {{ graine.en_possession ? '📦 En stock' : '🛒 À acheter' }}
+                        <button :class="['stock-toggle', { 'in-stock': seed.in_stock }]" @click.stop="seed.in_stock = !seed.in_stock">
+                          {{ seed.in_stock ? '📦 ' + t('seeds.in_stock') : '🛒 ' + t('seeds.to_buy') }}
                         </button>
-                        <span v-if="estEnGodet(graine.id)" class="badge-godet-actif">🌱 En godet</span>
+                        <span v-if="isInTray(seed.id)" class="badge-in-tray">🌱 {{ t('seeds.in_tray') }}</span>
                       </div>
                     </div>
                     <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
-                      <span class="badge">{{ graine.type }}</span>
-                      <span :class="['badge', graine.est_plant ? 'badge-plant' : 'badge-seed']">{{ graine.est_plant ? '🌿 Plant' : '🌰 Graine' }}</span>
-                      <span v-if="estPerimee(graine.peremption)" class="badge badge-perime">⚠️ Périmé</span>
-                      <span v-else-if="graine.peremption" class="badge badge-date">⏳ Exp: {{ formatMoisAnnee(graine.peremption) }}</span>
+                      <span class="badge">{{ categoryLabel(seed.category) }}</span>
+                      <span :class="['badge', seed.is_plant ? 'badge-plant' : 'badge-seed']">{{ seed.is_plant ? '🌿 ' + t('seeds.plant') : '🌰 ' + t('seeds.seed') }}</span>
+                      <span v-if="isExpired(seed.expiry)" class="badge badge-expired">⚠️ {{ t('seeds.expired') }}</span>
+                      <span v-else-if="seed.expiry" class="badge badge-date">⏳ {{ t('seeds.expires', { date: formatMonthYear(seed.expiry) }) }}</span>
                     </div>
                   </div>
                 </div>
-                <div class="infos-agronomiques">
-                  <div class="infos-agronomiques-mini-grid">
-                    <p v-if="graine.sol" class="info-tag"><strong>Sol:</strong> {{ graine.sol }}</p>
-                    <p v-if="graine.arrosage" class="info-tag"><strong>Eau:</strong> {{ getArrosageLabel(graine.arrosage) }}</p>
+                <div class="plant-info">
+                  <div class="plant-info-tags">
+                    <p v-if="seed.soil" class="info-tag"><strong>{{ label('seeds.soil') }}</strong> {{ t(`soil.${seed.soil}`) }}</p>
+                    <p v-if="seed.watering_interval" class="info-tag"><strong>{{ label('seeds.water') }}</strong> {{ wateringLabel(seed.watering_interval) }}</p>
                   </div>
-                  <div class="ligne-saison" v-if="graine.godet_debut && graine.godet_fin"><span class="saison-icone">🌱</span><span class="saison-texte">Mise en godet : {{ graine.godet_debut.substring(0,3) }}. à {{ graine.godet_fin.substring(0,3) }}.</span></div>
-                  <div class="ligne-saison" v-if="graine.plantation_debut && graine.plantation_fin"><span class="saison-icone">🌿</span><span class="saison-texte">Pleine terre : {{ graine.plantation_debut.substring(0,3) }}. à {{ graine.plantation_fin.substring(0,3) }}.</span></div>
-                  <div class="ligne-saison" v-if="graine.recolte_debut && graine.recolte_fin"><span class="saison-icone">🧺</span><span class="saison-texte">Récolte : {{ graine.recolte_debut.substring(0,3) }}. à {{ graine.recolte_fin.substring(0,3) }}.</span></div>
+                  <div class="info-line" v-if="seed.tray_start && seed.tray_end"><span class="info-icon">🌱</span><span>{{ t('seeds.tray_period', { from: shortMonth(seed.tray_start), to: shortMonth(seed.tray_end) }) }}</span></div>
+                  <div class="info-line" v-if="seed.planting_start && seed.planting_end"><span class="info-icon">🌿</span><span>{{ t('seeds.planting_period', { from: shortMonth(seed.planting_start), to: shortMonth(seed.planting_end) }) }}</span></div>
+                  <div class="info-line" v-if="seed.harvest_start && seed.harvest_end"><span class="info-icon">🧺</span><span>{{ t('seeds.harvest_period', { from: shortMonth(seed.harvest_start), to: shortMonth(seed.harvest_end) }) }}</span></div>
                 </div>
               </div>
             </div>
-            
-            <div v-if="grainesFiltrees.length === 0" class="etat-vide pleine-largeur">
-              <div class="etat-vide-icone">🔍</div>
-              <h3>Aucun végétal ne correspond à votre recherche.</h3>
+
+            <div v-if="filteredSeeds.length === 0" class="empty-state full-row">
+              <div class="empty-state-icon">🔍</div>
+              <h3>{{ t('seeds.no_match') }}</h3>
             </div>
           </div>
         </div>
       </div>
 
-      <div v-if="vueActive === 'godets'" class="vue-godets vue-scrollable">
-        <header class="header-epure flex-between block-mobile">
+      <!-- SEEDLINGS -->
+      <div v-if="activeView === 'seedlings'" class="view-scroll">
+        <header class="page-header flex-between block-mobile">
           <div>
-            <h2>Mes semis en godets</h2>
-            <p class="sous-titre">Suivez la croissance de vos semis avant le repiquage.</p>
+            <h2>{{ t('seedlings.title') }}</h2>
+            <p class="subtitle">{{ t('seedlings.subtitle') }}</p>
           </div>
-          <button class="btn-submit full-width mt-mobile" @click="ouvrirModalAjoutGodet()">+ Nouveau godet</button>
+          <button class="btn-submit full-width mt-mobile" @click="openSeedlingModal()">+ {{ t('seedlings.new') }}</button>
         </header>
 
-        <div class="workspace-graines">
-          <div v-if="!godetsAffichables || godetsAffichables.length === 0" class="etat-vide">
-            <div class="etat-vide-icone">🌱</div>
-            <h3>Votre pouponnière est vide</h3>
+        <div class="section-block">
+          <div v-if="seedlingCards.length === 0" class="empty-state">
+            <div class="empty-state-icon">🌱</div>
+            <h3>{{ t('seedlings.empty') }}</h3>
           </div>
-          <div class="grid-graines" v-else>
-            <div v-for="godet in godetsAffichables" :key="godet.id" class="carte-graine carte-godet">
-              <div class="carte-actions">
-                <button class="btn-icon" @click="ouvrirModalAjoutGodet(godet)" title="Modifier">✎</button>
-                <button class="btn-icon rouge" @click="supprimerGodet(godet.id)" title="Supprimer">✔</button>
+          <div class="card-grid" v-else>
+            <div v-for="s in seedlingCards" :key="s.id" class="card card-seedling">
+              <div class="card-actions">
+                <button class="btn-icon" @click="openSeedlingModal(s)" :title="t('common.edit')">✎</button>
+                <button class="btn-icon danger" @click="deleteSeedling(s.id)" :title="t('seedlings.done')">✔</button>
               </div>
-              <div class="carte-contenu">
-                <div class="carte-top align-center">
-                  <div class="icone-graine">{{ godet.icone }}</div>
-                  <div class="titre-graine flex-grow">
-                    <h3>{{ godet.nom }}</h3>
-                    <span class="badge">{{ godet.type }}</span>
+              <div class="card-body">
+                <div class="card-top align-center">
+                  <div class="card-icon">{{ s.icon }}</div>
+                  <div class="card-title flex-grow">
+                    <h3>{{ s.name }}</h3>
+                    <span class="badge">{{ categoryLabel(s.category) }}</span>
                   </div>
-                  <div class="bulle-quantite godet-bulle">
-                    <span class="qte-nombre">{{ godet.quantite }}</span>
-                    <span class="qte-label">Pots</span>
+                  <div class="quantity-bubble tray-bubble">
+                    <span class="qty-value">{{ s.quantity }}</span>
+                    <span class="qty-label">{{ t('seedlings.trays') }}</span>
                   </div>
                 </div>
-                <div class="infos-agronomiques mt-15" v-if="godet.emplacement">
-                  <div class="ligne-saison">
-                    <span class="saison-icone">📍</span>
-                    <span class="saison-texte"><strong>Emplacement :</strong> {{ godet.emplacement }}</span>
-                  </div>
+                <div class="plant-info mt-15" v-if="s.location">
+                  <div class="info-line"><span class="info-icon">📍</span><span><strong>{{ label('common.location') }}</strong> {{ s.location }}</span></div>
                 </div>
               </div>
             </div>
@@ -296,170 +289,128 @@
         </div>
       </div>
 
-      <div v-if="vueActive === 'pots'" class="vue-pots vue-scrollable">
-        <header class="header-epure flex-between block-mobile">
+      <!-- POTS -->
+      <div v-if="activeView === 'pots'" class="view-scroll">
+        <header class="page-header flex-between block-mobile">
           <div>
-            <h2>Plantes en pots</h2>
-            <p class="sous-titre">Gérez vos plantes d'intérieur et d'extérieur.</p>
+            <h2>{{ t('pots.title') }}</h2>
+            <p class="subtitle">{{ t('pots.subtitle') }}</p>
           </div>
-          <button class="btn-submit full-width mt-mobile" @click="ouvrirModalPot()">+ Nouvelle plante</button>
+          <button class="btn-submit full-width mt-mobile" @click="openPotModal()">+ {{ t('pots.new') }}</button>
         </header>
 
-        <div class="workspace-graines">
-          <div class="filtres-bar block-mobile" v-if="pots && pots.length > 0">
+        <div class="section-block">
+          <div class="filter-bar block-mobile" v-if="pots.length > 0">
             <div class="form-group search-group full-width">
-              <span class="search-icon">🔍</span>
-              <input type="text" v-model="recherchePot" placeholder="Rechercher une plante en pot..." />
+              <span class="search-icon"><Icon name="search" :size="18" /></span>
+              <input type="text" v-model="potSearch" :placeholder="t('pots.search')" />
             </div>
           </div>
 
-          <div v-if="!pots || pots.length === 0" class="etat-vide">
-            <div class="etat-vide-icone">🪴</div>
-            <h3>Vous n'avez pas encore de plantes en pot</h3>
+          <div v-if="pots.length === 0" class="empty-state">
+            <div class="empty-state-icon">🪴</div>
+            <h3>{{ t('pots.empty') }}</h3>
           </div>
-          
-          <div v-else-if="potsInterieurFiltres.length === 0 && potsExterieurFiltres.length === 0" class="etat-vide">
-            <div class="etat-vide-icone">🔍</div>
-            <h3>Aucune plante ne correspond à votre recherche.</h3>
+          <div v-else-if="potGroups.every(g => g.pots.length === 0)" class="empty-state">
+            <div class="empty-state-icon">🔍</div>
+            <h3>{{ t('pots.no_match') }}</h3>
           </div>
 
-          <div v-else>
-            <div v-if="potsInterieurFiltres.length > 0">
-              <h3 class="section-titre mt-15">🏠 Plantes d'Intérieur</h3>
-              <div class="grid-graines mb-30">
-                <div v-for="pot in potsInterieurFiltres" :key="pot.id" class="carte-graine carte-pot">
-                  <div class="carte-actions">
-                    <button class="btn-icon" @click="ouvrirModalPot(pot)" title="Modifier">✎</button>
-                    <button class="btn-icon rouge" @click="supprimerPot(pot.id)" title="Supprimer">×</button>
+          <template v-for="group in potGroups" :key="group.environment">
+            <div v-if="group.pots.length > 0">
+              <h3 class="section-title mt-15">{{ group.environment === 'indoor' ? '🏠 ' + t('pots.indoor_plants') : '☀️ ' + t('pots.outdoor_plants') }}</h3>
+              <div class="card-grid mb-30">
+                <div v-for="pot in group.pots" :key="pot.id" :class="['card', group.environment === 'indoor' ? 'card-pot' : 'card-pot-outdoor']">
+                  <div class="card-actions">
+                    <button class="btn-icon" @click="openPotModal(pot)" :title="t('common.edit')">✎</button>
+                    <button class="btn-icon danger" @click="deletePot(pot.id)" :title="t('common.delete')">×</button>
                   </div>
-                  <div class="carte-contenu">
-                    <div class="carte-top align-center">
-                      <div class="icone-graine">{{ pot.icone }}</div>
-                      <div class="titre-graine flex-grow">
-                        <h3>{{ pot.nom }}</h3>
-                        <span class="badge badge-interieur">🏠 Intérieur</span>
+                  <div class="card-body">
+                    <div class="card-top align-center">
+                      <div class="card-icon">{{ pot.icon }}</div>
+                      <div class="card-title flex-grow">
+                        <h3>{{ pot.name }}</h3>
+                        <span :class="['badge', group.environment === 'indoor' ? 'badge-indoor' : 'badge-outdoor']">{{ group.environment === 'indoor' ? '🏠 ' + t('pots.indoor') : '☀️ ' + t('pots.outdoor') }}</span>
                       </div>
                     </div>
-                    <div class="infos-agronomiques mt-15">
-                      <div class="ligne-saison" v-if="pot.emplacement">
-                        <span class="saison-icone">📍</span>
-                        <span class="saison-texte"><strong>Lieu :</strong> {{ pot.emplacement }}</span>
-                      </div>
-                      <div class="ligne-saison">
-                        <span class="saison-icone">💦</span>
-                        <span class="saison-texte"><strong>Eau :</strong> {{ getArrosageLabel(pot.arrosage) }}</span>
-                      </div>
-                      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
-                        <div v-if="potBesoinEau(pot) && !pot.arrosageEnCours" class="badge badge-perime" style="display:flex; align-items:center; gap: 5px;">⚠️ Soif</div>
-                        <div v-else-if="pot.arrosageEnCours" style="color: #0288d1; font-weight: bold; font-size: 0.9em;">Arrosage en cours... 💧</div>
-                        <div v-else style="color: #388e3c; font-size: 0.9em;">Hydratée ✓</div>
-                        <button class="btn-arroser-petit" @click="arroserPot(pot)" title="J'ai arrosé">💦 Arroser</button>
+                    <div class="plant-info mt-15">
+                      <div class="info-line" v-if="pot.location"><span class="info-icon">📍</span><span><strong>{{ label('common.location') }}</strong> {{ pot.location }}</span></div>
+                      <div class="info-line"><span class="info-icon">💦</span><span><strong>{{ label('seeds.water') }}</strong> {{ wateringLabel(pot.watering_interval) }}</span></div>
+                      <div class="pot-status">
+                        <div v-if="potNeedsWater(pot) && !pot._watering" class="badge badge-expired">⚠️ {{ t('pots.thirsty') }}</div>
+                        <div v-else-if="pot._watering" class="status-watering">{{ t('pots.watering') }} 💧</div>
+                        <div v-else class="status-ok">{{ t('pots.hydrated') }} ✓</div>
+                        <button class="btn-water-small" @click="waterPot(pot)">💦 {{ t('pots.water') }}</button>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
+          </template>
+        </div>
+      </div>
 
-            <div v-if="potsExterieurFiltres.length > 0">
-              <h3 class="section-titre mt-15">☀️ Plantes d'Extérieur</h3>
-              <div class="grid-graines mb-30">
-                <div v-for="pot in potsExterieurFiltres" :key="pot.id" class="carte-graine carte-pot-ext">
-                  <div class="carte-actions">
-                    <button class="btn-icon" @click="ouvrirModalPot(pot)" title="Modifier">✎</button>
-                    <button class="btn-icon rouge" @click="supprimerPot(pot.id)" title="Supprimer">×</button>
+      <!-- COMPANION PLANTING -->
+      <div v-if="activeView === 'companions'" class="view-scroll">
+        <header class="page-header">
+          <h2>{{ t('companions.title') }}</h2>
+          <p class="subtitle">{{ t('companions.subtitle') }}</p>
+        </header>
+
+        <div class="section-block">
+          <div class="filter-bar">
+            <div class="form-group search-group full-width">
+              <span class="search-icon"><Icon name="search" :size="18" /></span>
+              <input type="text" v-model="companionSearch" :placeholder="t('companions.search')" />
+            </div>
+          </div>
+
+          <div class="card-grid">
+            <div v-for="entry in filteredCompanions" :key="entry.plant" class="card">
+              <div class="card-body">
+                <h3 class="companion-title">{{ plantName(entry.plant, locale) }}</h3>
+                <div class="companion-block good">
+                  <div class="companion-header"><span class="companion-icon">✨</span><strong>{{ t('companions.good') }}</strong></div>
+                  <div class="tags-container">
+                    <span v-for="p in entry.good" :key="'g' + p" class="tag tag-good">{{ plantName(p, locale) }}</span>
                   </div>
-                  <div class="carte-contenu">
-                    <div class="carte-top align-center">
-                      <div class="icone-graine">{{ pot.icone }}</div>
-                      <div class="titre-graine flex-grow">
-                        <h3>{{ pot.nom }}</h3>
-                        <span class="badge badge-exterieur">☀️ Extérieur</span>
-                      </div>
-                    </div>
-                    <div class="infos-agronomiques mt-15">
-                      <div class="ligne-saison" v-if="pot.emplacement">
-                        <span class="saison-icone">📍</span>
-                        <span class="saison-texte"><strong>Lieu :</strong> {{ pot.emplacement }}</span>
-                      </div>
-                      <div class="ligne-saison">
-                        <span class="saison-icone">💦</span>
-                        <span class="saison-texte"><strong>Eau :</strong> {{ getArrosageLabel(pot.arrosage) }}</span>
-                      </div>
-                      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
-                        <div v-if="potBesoinEau(pot) && !pot.arrosageEnCours" class="badge badge-perime" style="display:flex; align-items:center; gap: 5px;">⚠️ Soif</div>
-                        <div v-else-if="pot.arrosageEnCours" style="color: #0288d1; font-weight: bold; font-size: 0.9em;">Arrosage en cours... 💧</div>
-                        <div v-else style="color: #388e3c; font-size: 0.9em;">Hydratée ✓</div>
-                        <button class="btn-arroser-petit" @click="arroserPot(pot)" title="J'ai arrosé">💦 Arroser</button>
-                      </div>
-                    </div>
+                </div>
+                <div class="companion-block bad mt-15">
+                  <div class="companion-header"><span class="companion-icon">⚠️</span><strong>{{ t('companions.bad') }}</strong></div>
+                  <div class="tags-container">
+                    <span v-for="p in entry.bad" :key="'b' + p" class="tag tag-bad">{{ plantName(p, locale) }}</span>
+                    <span v-if="entry.bad.length === 0" class="tag tag-empty">{{ t('companions.none') }}</span>
                   </div>
                 </div>
               </div>
+            </div>
+            <div v-if="filteredCompanions.length === 0" class="empty-state full-row">
+              <div class="empty-state-icon">🌱</div><h3>{{ t('companions.no_match') }}</h3>
             </div>
           </div>
         </div>
       </div>
 
-      <div v-if="vueActive === 'conseils'" class="vue-conseils vue-scrollable">
-        <header class="header-epure">
-          <h2>Compagnonnage Végétal</h2>
-          <p class="sous-titre">Découvrez quelles plantes associer pour stimuler la croissance.</p>
-        </header>
-        
-        <div class="workspace-graines">
-          <div class="filtres-bar">
-            <div class="form-group search-group full-width">
-              <span class="search-icon">🔍</span>
-              <input type="text" v-model="rechercheConseil" placeholder="Rechercher un légume (ex: Tomate, Ail...)" />
-            </div>
-          </div>
-
-          <div class="grid-graines">
-            <div v-for="(assoc, index) in conseilsFiltres" :key="index" class="carte-graine carte-conseil">
-              <div class="carte-contenu">
-                <h3 class="assoc-titre">{{ assoc.plante }}</h3>
-                <div class="assoc-bloc fav">
-                  <div class="assoc-header"><span class="assoc-icon">✨</span><strong>Associations Favorables</strong></div>
-                  <div class="tags-container">
-                    <span v-for="p in assoc.fav" :key="'f'+p" class="tag tag-fav">{{ p }}</span>
-                  </div>
-                </div>
-                <div class="assoc-bloc defav mt-15">
-                  <div class="assoc-header"><span class="assoc-icon">⚠️</span><strong>Associations Défavorables</strong></div>
-                  <div class="tags-container">
-                    <span v-for="p in assoc.defav" :key="'d'+p" class="tag tag-defav">{{ p }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div v-if="conseilsFiltres.length === 0" class="etat-vide pleine-largeur">
-              <div class="etat-vide-icone">🌱</div><h3>Aucune plante trouvée dans l'encyclopédie.</h3>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div v-if="vueActive === 'rotation'" class="vue-rotation vue-scrollable">
-        <header class="header-epure">
-          <h2>Rotation des Cultures</h2>
-          <p class="sous-titre">Le principe de base pour préserver votre sol : ne plantez jamais la même famille de légumes au même endroit d'une année sur l'autre.</p>
+      <!-- CROP ROTATION -->
+      <div v-if="activeView === 'rotation'" class="view-scroll">
+        <header class="page-header">
+          <h2>{{ t('rotation.title') }}</h2>
+          <p class="subtitle">{{ t('rotation.subtitle') }}</p>
         </header>
 
-        <div class="info-bulle mb-30" style="display:block;">
-          💡 <b>Comment ça marche ?</b> Divisez votre potager en 4 zones (ou 4 bacs). Chaque année, décalez les groupes d'une zone à l'autre. Ce cycle de 4 ans évite l'épuisement du sol, freine la propagation des maladies et réduit l'utilisation d'engrais.
-        </div>
+        <div class="tip-box mb-30" style="display:block;" v-html="t('rotation.how_html')"></div>
 
         <div class="rotation-grid">
-          <div v-for="(cat, index) in rotationCategories" :key="cat.id" class="carte-rotation">
-            <div class="rotation-header" :class="cat.id">
-              <span class="step-badge">Année {{ index + 1 }}</span>
-              <h3>{{ cat.nom }}</h3>
+          <div v-for="(group, index) in ROTATION" :key="group.id" class="rotation-card">
+            <div class="rotation-header" :class="group.id">
+              <span class="step-badge">{{ t('rotation.year', { n: index + 1 }) }}</span>
+              <h3>{{ t(`rotation.groups.${group.id}.name`) }}</h3>
             </div>
-            <div class="carte-contenu-rot">
-              <p class="desc-rotation">{{ cat.desc }}</p>
+            <div class="rotation-body">
+              <p class="rotation-desc">{{ t(`rotation.groups.${group.id}.desc`) }}</p>
               <div class="tags-container mt-15">
-                <span v-for="p in cat.plantes" :key="p" class="tag tag-rotation">{{ p }}</span>
+                <span v-for="p in group.plants" :key="p" class="tag tag-rotation">{{ plantName(p, locale) }}</span>
               </div>
             </div>
             <div v-if="index < 3" class="arrow-next hide-on-mobile">➔</div>
@@ -468,27 +419,27 @@
         </div>
 
         <div class="mt-30">
-          <h3 class="section-titre">Mémento détaillé par végétal</h3>
+          <h3 class="section-title">{{ t('rotation.table_title') }}</h3>
           <div class="table-responsive">
-            <table class="table-familles">
+            <table class="data-table">
               <thead>
                 <tr>
-                  <th>Catégorie</th>
-                  <th>Plantes / Légumes</th>
-                  <th>Mise en terre</th>
-                  <th>Saison</th>
-                  <th>Exposition</th>
-                  <th>Arrosage</th>
+                  <th>{{ t('rotation.columns.category') }}</th>
+                  <th>{{ t('rotation.columns.plants') }}</th>
+                  <th>{{ t('rotation.columns.planting') }}</th>
+                  <th>{{ t('rotation.columns.season') }}</th>
+                  <th>{{ t('rotation.columns.exposure') }}</th>
+                  <th>{{ t('rotation.columns.watering') }}</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="item in besoinsFamilles" :key="item.plante">
-                  <td><span :class="['badge-famille', item.type]">{{ item.labelType }}</span></td>
-                  <td><strong>{{ item.plante }}</strong></td>
-                  <td>{{ item.plantation }}</td>
-                  <td>{{ item.saison }}</td>
-                  <td>{{ item.soleil }}</td>
-                  <td>{{ item.arrosage }}</td>
+                <tr v-for="row in FAMILY_NEEDS" :key="row.id">
+                  <td><span :class="['badge-family', row.family]">{{ t(`reference.needs.${row.id}.label`) }}</span></td>
+                  <td><strong>{{ t(`reference.needs.${row.id}.plants`) }}</strong></td>
+                  <td>{{ t(`reference.needs.${row.id}.planting`) }}</td>
+                  <td>{{ t(`reference.needs.${row.id}.season`) }}</td>
+                  <td>{{ t(`reference.needs.${row.id}.sun`) }}</td>
+                  <td>{{ t(`reference.needs.${row.id}.water`) }}</td>
                 </tr>
               </tbody>
             </table>
@@ -496,72 +447,71 @@
         </div>
 
         <div class="mt-30">
-          <h3 class="section-titre">Comment nourrir son sol au fil des saisons ?</h3>
+          <h3 class="section-title">{{ t('rotation.soil_title') }}</h3>
           <div class="tips-grid">
-            <div v-for="tip in enrichissementSaisons" :key="tip.saison" class="tip-card">
-              <div class="tip-icon">{{ tip.icone }}</div>
+            <div v-for="tip in SOIL_TIPS" :key="tip.id" class="tip-card">
+              <div class="tip-icon">{{ tip.icon }}</div>
               <div class="tip-content">
-                <h4>{{ tip.saison }}</h4>
-                <p>{{ tip.texte }}</p>
+                <h4>{{ t(`reference.soil_tips.${tip.id}.title`) }}</h4>
+                <p>{{ t(`reference.soil_tips.${tip.id}.text`) }}</p>
               </div>
             </div>
           </div>
         </div>
-
       </div>
 
-      <div v-if="vueActive === 'notifications'" class="vue-notifications vue-scrollable">
-        <header class="header-epure flex-between block-mobile">
+      <!-- NOTIFICATIONS -->
+      <div v-if="activeView === 'notifications'" class="view-scroll">
+        <header class="page-header flex-between block-mobile">
           <div>
-            <h2>Centre de Notifications</h2>
-            <p class="sous-titre">Gérez les alertes de votre potager.</p>
+            <h2>{{ t('notifications.title') }}</h2>
+            <p class="subtitle">{{ t('notifications.subtitle') }}</p>
           </div>
-          <button v-if="totalAlertesArrosage > 0" class="btn-arroser-petit full-width mt-mobile" @click="declencherArrosageGlobal()">💦 Tout arroser</button>
+          <button v-if="thirstyCount > 0" class="btn-water-small full-width mt-mobile" @click="waterEverything()">💦 {{ t('notifications.water_all') }}</button>
         </header>
 
-        <div v-if="totalAlertes === 0" class="etat-vide">
-          <div class="etat-vide-icone">✨</div>
-          <h3>Tout est à jour !</h3>
+        <div v-if="alertCount === 0" class="empty-state">
+          <div class="empty-state-icon">✨</div>
+          <h3>{{ t('notifications.all_clear') }}</h3>
         </div>
 
-        <div class="alertes-grid" v-else>
-          <div class="alertes-container arrosage-container" v-if="alertesArrosage.length > 0">
-            <h3><span class="icone-h3">💧</span> Bacs nécessitant de l'eau</h3>
-            <div class="liste-alertes">
-              <div v-for="alerte in alertesArrosage" :key="'arr'+alerte.id" class="alerte-item arrosage block-mobile">
-                <div class="alerte-icone hide-on-mobile-small">💦</div>
-                <div class="alerte-texte">
-                  Le <strong>{{ alerte.nom || 'Bac sans nom' }}</strong> a besoin d'être arrosé ! 
-                  <span class="arrosage-sous-texte">Dernier arrosage il y a {{ alerte.joursDepuis }} jour(s).</span>
+        <div class="alert-groups" v-else>
+          <div class="alert-group watering-group" v-if="bedAlerts.length > 0">
+            <h3><span class="heading-icon">💧</span> {{ t('notifications.beds_title') }}</h3>
+            <div class="alert-list">
+              <div v-for="alert in bedAlerts" :key="'bed' + alert.bed.id" class="alert-item watering block-mobile">
+                <div class="alert-icon hide-on-mobile-small">💦</div>
+                <div class="alert-text">
+                  <span v-html="t('notifications.bed_thirsty_html', { name: escapeHtml(alert.bed.name || t('notifications.unnamed_bed')) })"></span>
+                  <span class="alert-subtext">{{ t('notifications.last_watered', { n: alert.days }) }}</span>
                 </div>
-                <button class="btn-arroser-petit full-width" @click="arroserBac(alerte.bac); allerAuBac(alerte.bac);">J'ai arrosé</button>
+                <button class="btn-water-small full-width" @click="waterBed(alert.bed); goToBed(alert.bed)">{{ t('notifications.watered') }}</button>
               </div>
             </div>
           </div>
 
-          <div class="alertes-container arrosage-container" v-if="alertesArrosagePots.length > 0">
-            <h3><span class="icone-h3">🪴</span> Plantes en pots assoiffées</h3>
-            <div class="liste-alertes">
-              <div v-for="alerte in alertesArrosagePots" :key="'pot'+alerte.id" class="alerte-item arrosage block-mobile" style="border-left-color: #8d6e63;">
-                <div class="alerte-icone hide-on-mobile-small">{{ alerte.icone }}</div>
-                <div class="alerte-texte">
-                  <strong>{{ alerte.nom }}</strong> ({{ alerte.emplacement }}) a soif !
-                  <span class="arrosage-sous-texte">Dernier arrosage il y a {{ alerte.joursDepuis }} jour(s).</span>
+          <div class="alert-group watering-group" v-if="potAlerts.length > 0">
+            <h3><span class="heading-icon">🪴</span> {{ t('notifications.pots_title') }}</h3>
+            <div class="alert-list">
+              <div v-for="alert in potAlerts" :key="'pot' + alert.pot.id" class="alert-item watering alert-pot block-mobile">
+                <div class="alert-icon hide-on-mobile-small">{{ alert.pot.icon }}</div>
+                <div class="alert-text">
+                  <span v-html="t('notifications.pot_thirsty_html', { name: escapeHtml(alert.pot.name), place: escapeHtml(alert.place) })"></span>
+                  <span class="alert-subtext">{{ t('notifications.last_watered', { n: alert.days }) }}</span>
                 </div>
-                <button class="btn-arroser-petit full-width" style="background: #8d6e63;" @click="arroserPot(alerte.pot);">J'ai arrosé</button>
+                <button class="btn-water-small btn-water-pot full-width" @click="waterPot(alert.pot)">{{ t('notifications.watered') }}</button>
               </div>
             </div>
           </div>
 
-          <div class="alertes-container" v-if="alertesSaisonsFiltrees.length > 0">
-            <h3><span class="icone-h3">📅</span> Tâches du Calendrier (Ce mois & Mois prochain)</h3>
-            <div class="liste-alertes">
-              <div v-for="(alerte, i) in alertesSaisonsFiltrees" :key="i" :class="['alerte-item', alerte.type]">
-                <div class="alerte-icone">{{ alerte.icone }}</div>
-                <div class="alerte-texte">
-                  <strong>{{ alerte.dist === 0 ? 'Ce mois-ci' : `Dans ${alerte.dist} mois` }}</strong> : 
-                  {{ alerte.type === 'godet' ? 'Mettre en godet' : (alerte.type === 'semis' ? 'Planter au potager' : 'Récolter') }} 
-                  <b>{{ alerte.plante }}</b> ({{ alerte.mois }})
+          <div class="alert-group" v-if="calendarAlerts.length > 0">
+            <h3><span class="heading-icon">📅</span> {{ t('notifications.calendar_title') }}</h3>
+            <div class="alert-list">
+              <div v-for="(alert, i) in calendarAlerts" :key="i" :class="['alert-item', alert.type]">
+                <div class="alert-icon">{{ alert.icon }}</div>
+                <div class="alert-text">
+                  <strong>{{ t('common.label', { text: alert.distance === 0 ? t('notifications.this_month') : t('notifications.in_months', { n: alert.distance }) }) }}</strong>
+                  {{ t(`notifications.task.${alert.type}`) }} <b>{{ alert.plant }}</b> ({{ monthName(alert.month) }})
                 </div>
               </div>
             </div>
@@ -569,138 +519,277 @@
         </div>
       </div>
 
-      <div v-if="vueActive === 'recapitulatif'" class="vue-recapitulatif vue-scrollable">
-        <header class="header-epure">
-          <h2>Vue d'ensemble</h2>
-          <p class="sous-titre">Météo et bilan du potager de la saison en cours.</p>
+      <!-- OVERVIEW -->
+      <div v-if="activeView === 'overview'" class="view-scroll">
+        <header class="page-header">
+          <h2>{{ t('overview.title') }}</h2>
+          <p class="subtitle">{{ t('overview.subtitle') }}</p>
         </header>
 
-        <div class="meteo-dashboard mb-30">
-          <template v-if="meteoInfo && !meteoErreur">
-            <div class="meteo-current">
-              <div class="meteo-city">📍 {{ meteoInfo.cityName }}</div>
-              <div class="meteo-main">
-                <div class="meteo-icon-large">{{ getWeatherEmoji(meteoInfo.current_weather.weathercode) }}</div>
-                <div class="meteo-temp-large">{{ Math.round(meteoInfo.current_weather.temperature) }}°C</div>
+        <div class="weather-card mb-30">
+          <template v-if="weather && !weatherError">
+            <div class="weather-current">
+              <div class="weather-city">📍 {{ weather.cityName }}</div>
+              <div class="weather-main">
+                <div class="weather-icon">{{ weatherEmoji(weather.current_weather.weathercode) }}</div>
+                <div class="weather-temp">{{ Math.round(weather.current_weather.temperature) }}°C</div>
               </div>
-              <div class="meteo-desc">Temps actuel</div>
+              <div class="weather-desc">{{ t('overview.current_weather') }}</div>
             </div>
-            <div class="meteo-forecast-grid">
-              <div v-for="(day, n) in 3" :key="n" class="forecast-card">
-                <span class="fc-date">{{ formatJour(meteoInfo.daily.time[n+1]) }}</span>
-                <span class="fc-icon">{{ getWeatherEmoji(meteoInfo.daily.weathercode[n+1]) }}</span>
-                <span class="fc-temp">{{ Math.round(meteoInfo.daily.temperature_2m_max[n+1]) }}° / {{ Math.round(meteoInfo.daily.temperature_2m_min[n+1]) }}°</span>
+            <div class="weather-forecast">
+              <div v-for="n in 3" :key="n" class="forecast-card">
+                <span class="fc-date">{{ weekday(weather.daily.time[n]) }}</span>
+                <span class="fc-icon">{{ weatherEmoji(weather.daily.weathercode[n]) }}</span>
+                <span class="fc-temp">{{ Math.round(weather.daily.temperature_2m_max[n]) }}° / {{ Math.round(weather.daily.temperature_2m_min[n]) }}°</span>
               </div>
             </div>
           </template>
-          <template v-else-if="meteoErreur">
-            <div class="meteo-placeholder erreur" @click="changerVue('reglages')">
-              <span class="placeholder-icon">⚠️</span>
-              <div class="placeholder-texte"><strong>Ville introuvable</strong><p>Vérifiez l'orthographe.</p></div>
+          <div v-else :class="['weather-placeholder', { error: weatherError }]" @click="showView('settings')">
+            <span class="placeholder-icon">{{ weatherError ? '⚠️' : '🌤️' }}</span>
+            <div class="placeholder-text">
+              <strong>{{ weatherError ? t('overview.city_not_found') : t('overview.setup_weather') }}</strong>
+              <p v-if="weatherError">{{ t('overview.check_spelling') }}</p>
             </div>
-          </template>
-          <template v-else>
-            <div class="meteo-placeholder" @click="changerVue('reglages')">
-              <span class="placeholder-icon">🌤️</span>
-              <div class="placeholder-texte"><strong>Configurez la météo</strong></div>
-            </div>
-          </template>
+          </div>
         </div>
 
         <div class="stats-dashboard mt-30 block-mobile">
-          <div class="stat-box full-width"><span class="stat-valeur">{{ totalPlantsCultives }}</span><span class="stat-label">Plants en terre</span></div>
-          <div class="stat-box full-width"><span class="stat-valeur">{{ totalGodetsCultives }}</span><span class="stat-label">Semis en godets</span></div>
-          <div class="stat-box full-width"><span class="stat-valeur">{{ pots ? pots.length : 0 }}</span><span class="stat-label">Plantes en pots</span></div>
-          <div class="stat-box full-width"><span class="stat-valeur">{{ bacsUtilises }} / {{ bacsTotal }}</span><span class="stat-label">Bacs potagers ({{ saisonActive }})</span></div>
+          <div class="stat-box full-width"><span class="stat-value">{{ totalPlants }}</span><span class="stat-label">{{ t('overview.stats.planted') }}</span></div>
+          <div class="stat-box full-width"><span class="stat-value">{{ totalSeedlings }}</span><span class="stat-label">{{ t('overview.stats.seedlings') }}</span></div>
+          <div class="stat-box full-width"><span class="stat-value">{{ pots.length }}</span><span class="stat-label">{{ t('overview.stats.pots') }}</span></div>
+          <div class="stat-box full-width"><span class="stat-value">{{ usedBeds }} / {{ totalBeds }}</span><span class="stat-label">{{ t('overview.stats.beds') }}</span></div>
         </div>
 
-        <h3 class="section-titre mt-30">Récapitulatif des cultures</h3>
-        <div class="workspace-graines mb-30">
-          <div v-if="culturesPlantees.length === 0" class="etat-vide"><div class="etat-vide-icone">🪴</div><h3>Votre potager est vierge pour cette saison.</h3></div>
-          <div class="grid-graines" v-else>
-            <div v-for="culture in culturesPlantees" :key="culture.id" class="carte-graine carte-recap">
-              <div class="carte-contenu">
-                <div class="carte-top align-center">
-                  <div class="icone-graine-petit">{{ culture.icone }}</div>
-                  <div class="titre-graine flex-grow"><h3>{{ culture.nom }}</h3><span class="badge">{{ culture.type }}</span></div>
-                  <div class="bulle-quantite"><span class="qte-nombre">{{ culture.quantiteTotale }}</span><span class="qte-label">plants</span></div>
+        <h3 class="section-title mt-30">{{ t('overview.crops_title') }}</h3>
+        <div class="section-block mb-30">
+          <div v-if="plantedCrops.length === 0" class="empty-state"><div class="empty-state-icon">🪴</div><h3>{{ t('overview.empty_garden') }}</h3></div>
+          <div class="card-grid" v-else>
+            <div v-for="crop in plantedCrops" :key="crop.id" class="card">
+              <div class="card-body">
+                <div class="card-top align-center">
+                  <div class="card-icon-small">{{ crop.icon }}</div>
+                  <div class="card-title flex-grow"><h3>{{ crop.name }}</h3><span class="badge">{{ categoryLabel(crop.category) }}</span></div>
+                  <div class="quantity-bubble"><span class="qty-value">{{ crop.quantity }}</span><span class="qty-label">{{ t('overview.plants') }}</span></div>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <h3 class="section-titre mt-30" v-if="pots && pots.length > 0">Récapitulatif des pots</h3>
-        <div class="workspace-graines mb-30" v-if="pots && pots.length > 0">
-          <div class="grid-graines">
-            <div v-for="pot in pots" :key="'recap'+pot.id" class="carte-graine carte-recap">
-              <div class="carte-contenu">
-                <div class="carte-top align-center">
-                  <div class="icone-graine-petit">{{ pot.icone }}</div>
-                  <div class="titre-graine flex-grow"><h3>{{ pot.nom }}</h3>
-                    <span :class="['badge', pot.environnement === 'Interieur' ? 'badge-interieur' : 'badge-exterieur']" style="margin-top:5px;">{{ pot.environnement === 'Interieur' ? '🏠 Intérieur' : '☀️ Extérieur' }}</span>
+        <template v-if="pots.length > 0">
+          <h3 class="section-title mt-30">{{ t('overview.pots_title') }}</h3>
+          <div class="section-block mb-30">
+            <div class="card-grid">
+              <div v-for="pot in pots" :key="'recap' + pot.id" class="card">
+                <div class="card-body">
+                  <div class="card-top align-center">
+                    <div class="card-icon-small">{{ pot.icon }}</div>
+                    <div class="card-title flex-grow"><h3>{{ pot.name }}</h3>
+                      <span :class="['badge', pot.environment === 'indoor' ? 'badge-indoor' : 'badge-outdoor']" style="margin-top:5px;">{{ pot.environment === 'indoor' ? '🏠 ' + t('pots.indoor') : '☀️ ' + t('pots.outdoor') }}</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-
+        </template>
       </div>
 
-      <div v-if="vueActive === 'reglages'" class="vue-reglages vue-scrollable">
-        <header class="header-epure"><h2>Configuration du système</h2></header>
+      <!-- HOME ASSISTANT -->
+      <div v-if="activeView === 'homeassistant'" class="view-scroll">
+        <header class="page-header">
+          <h2>Home Assistant</h2>
+          <p class="subtitle">{{ t('ha.subtitle') }}</p>
+        </header>
 
-        <div class="grid-reglages">
-          <div class="carte-reglage carte-discord" style="grid-column: 1 / -1;">
-            <div class="reglage-header"><div class="reglage-icone">💬</div><h3>Notifications Discord</h3></div>
-            <div class="reglage-body">
+        <h3 class="section-title">{{ t('ha.setup_title') }}</h3>
+        <div class="ha-steps mb-30">
+          <div class="ha-step">
+            <div class="step-number">1</div>
+            <div class="step-body">
+              <h4>{{ t('ha.step1.title') }}</h4>
+              <p v-html="t('ha.step1.hacs_html')"></p>
+              <div class="copy-field"><code>{{ HA_REPOSITORY }}</code><button class="btn-icon" @click="copy(HA_REPOSITORY, 'repo')" :title="t('common.copy')">{{ recentlyCopied === 'repo' ? '✓' : '⧉' }}</button></div>
+              <p v-html="t('ha.step1.manual_html')"></p>
+              <p>{{ t('ha.step1.restart') }}</p>
+            </div>
+          </div>
+          <div class="ha-step">
+            <div class="step-number">2</div>
+            <div class="step-body">
+              <h4>{{ t('ha.step2.title') }}</h4>
+              <p>{{ t('ha.step2.text') }}</p>
+              <template v-if="haKey">
+                <div class="new-key-box">
+                  <code>{{ haKey }}</code>
+                  <button class="btn-icon" @click="copy(haKey, 'hakey')" :title="t('common.copy')">{{ recentlyCopied === 'hakey' ? '✓' : '⧉' }}</button>
+                </div>
+                <p class="field-help">{{ t('apikeys.copy_now') }}</p>
+              </template>
+              <button v-else class="btn-submit" @click="createHaKey" :disabled="creatingKey">{{ t('ha.step2.create') }}</button>
+              <p class="field-help mt-15" v-html="t('ha.step2.manage_html')"></p>
+            </div>
+          </div>
+          <div class="ha-step">
+            <div class="step-number">3</div>
+            <div class="step-body">
+              <h4>{{ t('ha.step3.title') }}</h4>
+              <p v-html="t('ha.step3.text_html')"></p>
+              <div class="copy-field"><code>{{ serverUrl }}</code><button class="btn-icon" @click="copy(serverUrl, 'url')" :title="t('common.copy')">{{ recentlyCopied === 'url' ? '✓' : '⧉' }}</button></div>
+              <p class="field-help" v-html="t('ha.step3.url_help_html')"></p>
+            </div>
+          </div>
+        </div>
+
+        <h3 class="section-title">{{ t('ha.entities_title') }}</h3>
+        <p class="subtitle mb-15">{{ t('ha.entities_help') }}</p>
+        <div class="table-responsive mb-30">
+          <table class="data-table table-ha">
+            <thead><tr><th>{{ t('ha.device') }}</th><th>{{ t('ha.entities') }}</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><strong>{{ t('ha.names.garden') }}</strong></td>
+                <td class="entity-list">
+                  <code v-for="e in gardenEntities" :key="e">{{ e }}</code>
+                </td>
+              </tr>
+              <tr>
+                <td><strong>{{ t('ha.names.seedlings') }}</strong></td>
+                <td class="entity-list">
+                  <code v-for="e in seedlingEntities" :key="e">{{ e }}</code>
+                </td>
+              </tr>
+              <tr v-for="d in haDevices" :key="d.key">
+                <td>
+                  <strong>{{ d.name }}</strong>
+                  <div class="ha-device-meta"><span class="badge">{{ d.kind === 'bed' ? t('ha.bed') : t('ha.pot') }}</span><span v-if="d.thirsty" class="badge badge-expired">{{ t('pots.thirsty') }}</span></div>
+                </td>
+                <td class="entity-list">
+                  <code v-for="e in d.entities" :key="e">{{ e }}</code>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="section-title">{{ t('ha.examples_title') }}</h3>
+        <div v-for="ex in haExamples" :key="ex.key" class="ha-example">
+          <div class="ha-example-header">
+            <div><h4>{{ ex.title }}</h4><p>{{ ex.desc }}</p></div>
+            <button class="btn-cancel" @click="copy(ex.yaml, ex.key)">{{ recentlyCopied === ex.key ? t('common.copied') : t('ha.copy_yaml') }}</button>
+          </div>
+          <pre class="code-block"><code>{{ ex.yaml }}</code></pre>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div v-if="activeView === 'settings'" class="view-scroll">
+        <header class="page-header"><h2>{{ t('settings.title') }}</h2></header>
+
+        <div class="settings-grid">
+          <div class="settings-card card-discord" style="grid-column: 1 / -1;">
+            <div class="settings-header"><div class="settings-icon">💬</div><h3>{{ t('settings.discord.title') }}</h3></div>
+            <div class="settings-body">
               <div class="form-group">
-                <label>URL du Webhook Discord</label>
+                <label>{{ t('settings.discord.url') }}</label>
                 <div class="input-action flex-col-mobile">
-                  <input type="url" v-model="reglages.webhookUrl" placeholder="https://discord.com/api/webhooks/..." />
-                  <button class="btn-submit full-width-mobile" @click="testerWebhookDiscord" :disabled="!reglages.webhookUrl">Tester</button>
+                  <input type="url" v-model="settings.webhook_url" placeholder="https://discord.com/api/webhooks/..." />
+                  <button class="btn-submit full-width-mobile" @click="testWebhook" :disabled="!settings.webhook_url">{{ t('settings.discord.test') }}</button>
                 </div>
               </div>
-              <div class="form-group mt-15" style="max-width: 200px;">
-                <label>Heure d'envoi automatique (HH:MM)</label>
-                <input type="time" v-model="reglages.webhookHeure" class="full-width-mobile" />
+              <div class="form-group mt-15" style="max-width: 220px;">
+                <label>{{ t('settings.discord.time') }}</label>
+                <input type="time" v-model="settings.webhook_time" class="full-width-mobile" />
               </div>
               <div class="form-group mt-15">
                 <label class="toggle-container">
-                  <input type="checkbox" v-model="reglages.webhookArrosage">
+                  <input type="checkbox" v-model="settings.webhook_watering_alert">
                   <span class="toggle-slider"></span>
-                  <span class="toggle-label">Alerte : "Jour d'arrosage pour : XXX" 💦</span>
+                  <span class="toggle-label">{{ t('settings.discord.watering_alert') }} 💦</span>
                 </label>
               </div>
               <div class="form-group mt-15">
                 <label class="toggle-container">
-                  <input type="checkbox" v-model="reglages.webhookPluie">
+                  <input type="checkbox" v-model="settings.webhook_rain_alert">
                   <span class="toggle-slider"></span>
-                  <span class="toggle-label">Alerte : "Il pleut aujourd'hui..." 🌧️</span>
+                  <span class="toggle-label">{{ t('settings.discord.rain_alert') }} 🌧️</span>
                 </label>
               </div>
             </div>
           </div>
 
-          <div class="carte-reglage carte-localisation">
-            <div class="reglage-header"><div class="reglage-icone">🌤️</div><h3>Localisation & Météo</h3></div>
-            <div class="reglage-body">
-              <div class="form-row block-mobile">
-                <div class="form-group flex-grow full-width"><label>Ville (ex: Paris)</label><input type="text" v-model="reglages.ville" placeholder="Nom de la ville" @blur="chargerMeteo" @keyup.enter="chargerMeteo" /></div>
-              </div>
-              <div v-if="meteoErreur" class="help-text mt-5">❌ Impossible de trouver cette ville.</div>
+          <div class="settings-card card-location">
+            <div class="settings-header"><div class="settings-icon">🌤️</div><h3>{{ t('settings.location.title') }}</h3></div>
+            <div class="settings-body">
+              <div class="form-group"><label>{{ t('settings.location.city') }}</label><input type="text" v-model="settings.city" :placeholder="t('settings.location.city_placeholder')" @blur="loadWeather" @keyup.enter="loadWeather" /></div>
+              <div v-if="weatherError" class="help-text">❌ {{ t('settings.location.not_found') }}</div>
             </div>
           </div>
 
-          <div class="carte-reglage carte-donnees">
-            <div class="reglage-header"><div class="reglage-icone">💾</div><h3>Sauvegarde & Restauration</h3></div>
-            <div class="reglage-body">
-              <p class="reglage-desc">Exportez l'intégralité de votre potager (graines, plan, godets, pots) ou restaurez une sauvegarde globale.</p>
-              <div style="display:flex; gap:10px; margin-top: 15px;" class="flex-col-mobile">
-                <button class="btn-submit full-width-mobile" style="flex:1; display:flex; justify-content:center; align-items:center; gap:8px;" @click="exporterTout">📤 Exporter tout</button>
-                <button class="btn-cancel full-width-mobile" style="flex:1; display:flex; justify-content:center; align-items:center; gap:8px; border-color:var(--text-main); color:var(--text-main);" @click="$refs.fileInputImportGlobal.click()">📥 Importer (Restaurer)</button>
-                <input type="file" ref="fileInputImportGlobal" @change="onFichierImportGlobalSelectionne" accept=".json" style="display: none;" />
+          <div class="settings-card card-language">
+            <div class="settings-header"><div class="settings-icon">🌐</div><h3>{{ t('settings.language.title') }}</h3></div>
+            <div class="settings-body">
+              <p class="settings-desc">{{ t('settings.language.desc') }}</p>
+              <select :value="locale" @change="changeLanguage($event.target.value)">
+                <option value="en">English</option>
+                <option value="fr">Français</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="settings-card card-data">
+            <div class="settings-header"><div class="settings-icon">💾</div><h3>{{ t('settings.backup.title') }}</h3></div>
+            <div class="settings-body">
+              <p class="settings-desc">{{ t('settings.backup.desc') }}</p>
+              <div style="display:flex; gap:10px;" class="flex-col-mobile">
+                <button class="btn-submit full-width-mobile" style="flex:1;" @click="exportAll">📤 {{ t('settings.backup.export') }}</button>
+                <button class="btn-cancel full-width-mobile" style="flex:1;" @click="$refs.backupInput.click()">📥 {{ t('settings.backup.import') }}</button>
+                <input type="file" ref="backupInput" @change="onBackupFileSelected" accept=".json" style="display: none;" />
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-card card-security">
+            <div class="settings-header"><div class="settings-icon">🔒</div><h3>{{ t('settings.account.title') }}</h3></div>
+            <div class="settings-body">
+              <p class="settings-desc" v-html="t('settings.account.signed_in_html', { name: escapeHtml(username) })"></p>
+              <p v-if="defaultCredentials" class="settings-desc warning-text" v-html="t('security.default_credentials_html')"></p>
+              <p class="settings-desc" v-else v-html="t('settings.account.change_html')"></p>
+              <button class="btn-cancel full-width-mobile" @click="logout">{{ t('settings.account.logout') }}</button>
+            </div>
+          </div>
+
+          <div class="settings-card card-apikeys" style="grid-column: 1 / -1;">
+            <div class="settings-header"><div class="settings-icon">🔑</div><h3>{{ t('apikeys.title') }}</h3></div>
+            <div class="settings-body">
+              <p class="settings-desc">{{ t('apikeys.desc') }}</p>
+              <form class="input-action flex-col-mobile" @submit.prevent="createApiKey(newKeyName)">
+                <input type="text" v-model="newKeyName" :placeholder="t('apikeys.name_placeholder')" maxlength="60" />
+                <button type="submit" class="btn-submit full-width-mobile" :disabled="creatingKey">{{ t('apikeys.create') }}</button>
+              </form>
+              <div v-if="createdKey" class="new-key-panel">
+                <strong>{{ t('apikeys.created', { name: createdKey.name }) }}</strong>
+                <div class="new-key-box">
+                  <code>{{ createdKey.key }}</code>
+                  <button class="btn-icon" @click="copy(createdKey.key, 'newkey')" :title="t('common.copy')">{{ recentlyCopied === 'newkey' ? '✓' : '⧉' }}</button>
+                </div>
+                <p class="field-help">{{ t('apikeys.copy_now') }}</p>
+                <button class="btn-cancel" @click="createdKey = null">{{ t('apikeys.done') }}</button>
+              </div>
+              <div v-if="apiKeys.length === 0" class="empty-state-small">{{ t('apikeys.empty') }}</div>
+              <div v-else class="table-responsive">
+                <table class="data-table">
+                  <thead><tr><th>{{ t('apikeys.name') }}</th><th>{{ t('apikeys.key') }}</th><th>{{ t('apikeys.created_at') }}</th><th>{{ t('apikeys.last_used') }}</th><th></th></tr></thead>
+                  <tbody>
+                    <tr v-for="k in apiKeys" :key="k.id">
+                      <td><strong>{{ k.name }}</strong></td>
+                      <td><code>{{ k.prefix }}…</code></td>
+                      <td>{{ formatDate(k.created_at) }}</td>
+                      <td>{{ k.last_used_at ? formatDate(k.last_used_at) : t('apikeys.never') }}</td>
+                      <td style="text-align: right;"><button class="btn-icon danger" @click="deleteApiKey(k)" :title="t('apikeys.revoke')"><Icon name="trash" :size="15" /></button></td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -708,1545 +797,1126 @@
       </div>
     </main>
 
-    <div v-if="afficherModalArbre" class="modal-overlay" @click.self="afficherModalArbre = false">
+    <!-- MODALS -->
+    <div v-if="treeModal" class="modal-overlay" @click.self="treeModal = false">
       <div class="modal">
-        <h3>Placer un objet 🏡</h3>
-        <form @submit.prevent="validerAjoutArbre">
+        <h3>{{ t('garden.tree_modal.title') }} 🌳</h3>
+        <form @submit.prevent="addTree">
           <div class="form-group">
-            <label>Taille de l'arbre sur la carte</label>
-            <select v-model="nouvelArbre.taille" required>
-              <option value="Petit">Petit (Arbuste)</option>
-              <option value="Moyen">Moyen (Fruitier classique)</option>
-              <option value="Grand">Grand (Chêne, Noyer...)</option>
+            <label>{{ t('garden.tree_modal.size') }}</label>
+            <select v-model="newTree.size" required>
+              <option v-for="s in TREE_SIZES" :key="s" :value="s">{{ t(`garden.tree_modal.sizes.${s}`) }}</option>
             </select>
           </div>
           <div class="actions block-mobile mt-30">
-            <button type="button" class="btn-cancel full-width" @click="afficherModalArbre = false">Annuler</button>
-            <button type="submit" class="btn-submit full-width">Placer sur la carte</button>
+            <button type="button" class="btn-cancel full-width" @click="treeModal = false">{{ t('common.cancel') }}</button>
+            <button type="submit" class="btn-submit full-width">{{ t('garden.place') }}</button>
           </div>
         </form>
       </div>
     </div>
 
-    <div v-if="afficherModalDeco" class="modal-overlay" @click.self="afficherModalDeco = false">
+    <div v-if="decorModal" class="modal-overlay" @click.self="decorModal = false">
       <div class="modal">
-        <h3>Placer une décoration ✨</h3>
-        <p class="sous-titre mb-15">Choisissez un objet ou un animal pour décorer votre plan.</p>
-        
-        <div class="grille-emojis-deco">
-          <span v-for="emoji in listeDecos" :key="emoji" 
-                :class="['emoji-deco-item', { actif: nouvelleDeco.icone === emoji }]" 
-                @click="nouvelleDeco.icone = emoji">{{ emoji }}</span>
+        <h3>{{ t('garden.decor_modal.title') }} ✨</h3>
+        <p class="subtitle mb-15">{{ t('garden.decor_modal.desc') }}</p>
+        <div class="decor-grid">
+          <span v-for="emoji in DECOR_ICONS" :key="emoji" :class="['decor-option', { active: newDecor.icon === emoji }]" @click="newDecor.icon = emoji">{{ emoji }}</span>
         </div>
-
         <div class="actions block-mobile mt-30">
-          <button type="button" class="btn-cancel full-width" @click="afficherModalDeco = false">Annuler</button>
-          <button class="btn-submit full-width" @click="validerAjoutDeco" :disabled="!nouvelleDeco.icone">Poser ici</button>
+          <button type="button" class="btn-cancel full-width" @click="decorModal = false">{{ t('common.cancel') }}</button>
+          <button class="btn-submit full-width" @click="addDecor" :disabled="!newDecor.icon">{{ t('garden.place') }}</button>
         </div>
       </div>
     </div>
 
-    <div v-if="afficherModal" class="modal-overlay" @click.self="afficherModal = false">
+    <div v-if="seedModal" class="modal-overlay" @click.self="seedModal = false">
       <div class="modal modal-large">
-        <h3>{{ modeEdition ? 'Modifier le végétal' : 'Ajouter un végétal' }}</h3>
-        <form @submit.prevent="sauvegarderGraine">
-          <div class="form-row block-mobile"><div class="form-group icone-selector-container full-width"><label>Icône</label><div class="icone-selector"><span v-for="ico in listeIcones" :key="ico" :class="['ico-choix', { 'ico-actif': nouvelleGraine.icone === ico }]" @click="nouvelleGraine.icone = ico">{{ ico }}</span></div></div><div class="form-group flex-grow full-width"><label>Nom de la variété *</label><input v-model="nouvelleGraine.nom" required /></div></div>
-          
+        <h3>{{ editingSeed ? t('seeds.modal.edit') : t('seeds.modal.add') }}</h3>
+        <form @submit.prevent="saveSeed">
           <div class="form-row block-mobile">
-            <div class="form-group third full-width"><label>Catégorie botanique *</label><select v-model="nouvelleGraine.type" required><option v-for="t in typesPlantes" :key="t" :value="t">{{ t }}</option></select></div>
-            <div class="form-group third full-width"><label>Type de sol favori</label><select v-model="nouvelleGraine.sol"><option value="">-- Non défini --</option><option v-for="s in typesSols" :key="s" :value="s">{{ s }}</option></select></div>
-            <div class="form-group third full-width"><label>Besoin en eau *</label><select v-model="nouvelleGraine.arrosage" required><option v-for="freq in optionsArrosage" :key="freq.val" :value="freq.val">{{ freq.label }}</option></select></div>
+            <div class="form-group icon-picker-field full-width"><label>{{ t('common.icon') }}</label><div class="icon-picker"><span v-for="ico in SEED_ICONS" :key="ico" :class="['icon-option', { 'icon-active': seedForm.icon === ico }]" @click="seedForm.icon = ico">{{ ico }}</span></div></div>
+            <div class="form-group flex-grow full-width"><label>{{ t('seeds.modal.name') }} *</label><input v-model="seedForm.name" required /></div>
           </div>
-          
+
           <div class="form-row block-mobile">
-            <div class="form-group flex-grow full-width" style="display:flex; flex-direction: column; justify-content: center;">
+            <div class="form-group third full-width"><label>{{ t('seeds.modal.category') }} *</label><select v-model="seedForm.category" required><option v-for="c in CATEGORIES" :key="c" :value="c">{{ t(`category.${c}`) }}</option></select></div>
+            <div class="form-group third full-width"><label>{{ t('seeds.modal.soil') }}</label><select v-model="seedForm.soil"><option value="">{{ t('seeds.modal.not_set') }}</option><option v-for="s in SOILS" :key="s" :value="s">{{ t(`soil.${s}`) }}</option></select></div>
+            <div class="form-group third full-width"><label>{{ t('seeds.modal.watering') }} *</label><select v-model="seedForm.watering_interval" required><option v-for="n in WATERING_INTERVALS" :key="n" :value="n">{{ wateringLabel(n) }}</option></select></div>
+          </div>
+
+          <div class="form-row block-mobile">
+            <div class="form-group flex-grow full-width" style="justify-content: center;">
               <label class="toggle-container">
-                <input type="checkbox" v-model="nouvelleGraine.en_possession">
+                <input type="checkbox" v-model="seedForm.in_stock">
                 <span class="toggle-slider"></span>
-                <span class="toggle-label">Je l'ai en stock (Sinon "À acheter")</span>
+                <span class="toggle-label">{{ t('seeds.modal.in_stock') }}</span>
               </label>
               <label class="toggle-container mt-15">
-                <input type="checkbox" v-model="nouvelleGraine.est_plant">
+                <input type="checkbox" v-model="seedForm.is_plant">
                 <span class="toggle-slider"></span>
-                <span class="toggle-label">C'est un plant (Pas une graine)</span>
+                <span class="toggle-label">{{ t('seeds.modal.is_plant') }}</span>
               </label>
             </div>
-            
             <div class="form-group third full-width">
-              <label>Date de péremption (Optionnelle)</label>
-              <input type="month" v-model="nouvelleGraine.peremption" title="Mois/Année limite d'utilisation" />
+              <label>{{ t('seeds.modal.expiry') }}</label>
+              <input type="month" v-model="seedForm.expiry" />
             </div>
           </div>
 
           <div class="form-row block-mobile mt-15">
-            <div class="form-group third full-width"><label>Début (Godet)</label><select v-model="nouvelleGraine.godet_debut"><option value="">-- Mois --</option><option v-for="m in mois" :key="'gd'+m" :value="m">{{m}}</option></select></div>
-            <div class="form-group third full-width"><label>Début (Terre)</label><select v-model="nouvelleGraine.plantation_debut"><option value="">-- Mois --</option><option v-for="m in mois" :key="'ps'+m" :value="m">{{m}}</option></select></div>
-            <div class="form-group third full-width"><label>Début Récolte</label><select v-model="nouvelleGraine.recolte_debut"><option value="">-- Mois --</option><option v-for="m in mois" :key="'rs'+m" :value="m">{{m}}</option></select></div>
+            <div v-for="field in ['tray_start', 'planting_start', 'harvest_start']" :key="field" class="form-group third full-width">
+              <label>{{ t(`seeds.modal.${field}`) }}</label>
+              <select v-model="seedForm[field]"><option :value="null">{{ t('seeds.modal.month') }}</option><option v-for="m in 12" :key="field + m" :value="m">{{ monthName(m) }}</option></select>
+            </div>
           </div>
           <div class="form-row block-mobile">
-            <div class="form-group third full-width"><label>Fin (Godet)</label><select v-model="nouvelleGraine.godet_fin"><option value="">-- Mois --</option><option v-for="m in mois" :key="'gf'+m" :value="m">{{m}}</option></select></div>
-            <div class="form-group third full-width"><label>Fin (Terre)</label><select v-model="nouvelleGraine.plantation_fin"><option value="">-- Mois --</option><option v-for="m in mois" :key="'pf'+m" :value="m">{{m}}</option></select></div>
-            <div class="form-group third full-width"><label>Fin Récolte</label><select v-model="nouvelleGraine.recolte_fin"><option value="">-- Mois --</option><option v-for="m in mois" :key="'rf'+m" :value="m">{{m}}</option></select></div>
+            <div v-for="field in ['tray_end', 'planting_end', 'harvest_end']" :key="field" class="form-group third full-width">
+              <label>{{ t(`seeds.modal.${field}`) }}</label>
+              <select v-model="seedForm[field]"><option :value="null">{{ t('seeds.modal.month') }}</option><option v-for="m in 12" :key="field + m" :value="m">{{ monthName(m) }}</option></select>
+            </div>
           </div>
-          <div class="actions"><button type="button" class="btn-cancel full-width" @click="afficherModal = false">Annuler</button><button type="submit" class="btn-submit full-width">Enregistrer</button></div>
+          <div class="actions"><button type="button" class="btn-cancel full-width" @click="seedModal = false">{{ t('common.cancel') }}</button><button type="submit" class="btn-submit full-width">{{ t('common.save') }}</button></div>
         </form>
       </div>
     </div>
-    
-    <div v-if="afficherModalImport" class="modal-overlay" @click.self="afficherModalImport = false">
-      <div class="modal">
-        <h3>Confirmer l'import 📥</h3>
-        <p class="modal-desc">Vous êtes sur le point d'ajouter <strong>{{ donneesImportEnAttente.length }}</strong> élément(s) à votre inventaire.</p>
-        
-        <div class="liste-import-preview">
-          <div v-for="(g, index) in donneesImportEnAttente.slice(0, 10)" :key="index" style="display:flex; align-items:center; gap:8px; margin-bottom: 5px;">
-            <span>{{ g.icone || '🌱' }}</span>
-            <strong>{{ g.nom || 'Inconnu' }}</strong>
-            <span style="font-size: 0.8em; color: gray;">- {{ g.type }}</span>
-          </div>
-          <div v-if="donneesImportEnAttente.length > 10" style="text-align: center; color: gray; font-style: italic; font-size: 0.8em; margin-top: 10px;">
-            ... et {{ donneesImportEnAttente.length - 10 }} autres
-          </div>
-        </div>
 
+    <div v-if="seedImport" class="modal-overlay" @click.self="seedImport = null">
+      <div class="modal">
+        <h3>{{ t('seeds.import_modal.title') }} 📥</h3>
+        <p class="modal-desc" v-html="t('seeds.import_modal.desc_html', { n: seedImport.length })"></p>
+        <div class="import-preview">
+          <div v-for="(item, index) in seedImport.slice(0, 10)" :key="index" class="import-row">
+            <span>{{ item.icon || item.icone || '🌱' }}</span>
+            <strong>{{ item.name || item.nom || '?' }}</strong>
+          </div>
+          <div v-if="seedImport.length > 10" class="import-more">{{ t('seeds.import_modal.more', { n: seedImport.length - 10 }) }}</div>
+        </div>
         <div class="actions block-mobile mt-30">
-          <button type="button" class="btn-cancel full-width" @click="afficherModalImport = false">Annuler</button>
-          <button type="button" class="btn-submit full-width" @click="validerImport">Valider l'import</button>
+          <button type="button" class="btn-cancel full-width" @click="seedImport = null">{{ t('common.cancel') }}</button>
+          <button type="button" class="btn-submit full-width" @click="confirmSeedImport">{{ t('seeds.import_modal.confirm') }}</button>
         </div>
       </div>
     </div>
 
-    <div v-if="afficherModalImportGlobal" class="modal-overlay" @click.self="afficherModalImportGlobal = false">
+    <div v-if="backupImport" class="modal-overlay" @click.self="backupImport = null">
       <div class="modal">
-        <h3>Restauration globale 📥</h3>
-        <p class="modal-desc" style="color: #d32f2f; font-weight: bold;">⚠️ Attention, cette action va effacer et remplacer TOUTES vos données actuelles par celles de la sauvegarde.</p>
-        
-        <div class="liste-import-preview">
+        <h3>{{ t('settings.restore.title') }} 📥</h3>
+        <p class="modal-desc warning-text">⚠️ {{ t('settings.restore.warning') }}</p>
+        <div class="import-preview">
           <ul>
-            <li><strong>Graines & Plants :</strong> {{ donneesImportGlobalEnAttente.grainotheque?.length || 0 }}</li>
-            <li><strong>Bacs & Éléments :</strong> {{ donneesImportGlobalEnAttente.parcelles?.length || 0 }}</li>
-            <li><strong>Godets :</strong> {{ donneesImportGlobalEnAttente.godets?.length || 0 }}</li>
-            <li><strong>Pots :</strong> {{ donneesImportGlobalEnAttente.pots?.length || 0 }}</li>
+            <li><strong>{{ label('settings.restore.seeds') }}</strong> {{ backupCount('seeds', 'grainotheque') }}</li>
+            <li><strong>{{ label('settings.restore.plots') }}</strong> {{ backupCount('plots', 'parcelles') }}</li>
+            <li><strong>{{ label('settings.restore.seedlings') }}</strong> {{ backupCount('seedlings', 'godets') }}</li>
+            <li><strong>{{ label('settings.restore.pots') }}</strong> {{ backupCount('pots', 'pots') }}</li>
           </ul>
         </div>
-
         <div class="actions block-mobile mt-30">
-          <button type="button" class="btn-cancel full-width" @click="afficherModalImportGlobal = false">Annuler</button>
-          <button type="button" class="btn-submit btn-danger full-width" @click="validerImportGlobal">Écraser et Restaurer</button>
+          <button type="button" class="btn-cancel full-width" @click="backupImport = null">{{ t('common.cancel') }}</button>
+          <button type="button" class="btn-submit btn-danger full-width" @click="confirmBackupImport">{{ t('settings.restore.confirm') }}</button>
         </div>
       </div>
     </div>
 
-    <div v-if="afficherModalGodet" class="modal-overlay" @click.self="afficherModalGodet = false">
+    <div v-if="seedlingModal" class="modal-overlay" @click.self="seedlingModal = false">
       <div class="modal">
-        <h3>{{ modeEditionGodet ? 'Modifier ce godet' : 'Nouveaux semis en godet' }}</h3>
-        <form @submit.prevent="validerAjoutGodet">
+        <h3>{{ seedlingForm.id ? t('seedlings.modal.edit') : t('seedlings.modal.add') }}</h3>
+        <form @submit.prevent="saveSeedling">
           <div class="form-group">
-            <label>Graine à semer *</label>
-            <select v-model="nouveauGodet.id_graine" required>
-              <option disabled value="">-- Choisissez --</option>
-              <option v-for="g in grainotheque" :key="'god'+g.id" :value="g.id">{{ g.icone }} {{ g.nom }}</option>
+            <label>{{ t('seedlings.modal.seed') }} *</label>
+            <select v-model="seedlingForm.seed_id" required>
+              <option disabled value="">{{ t('common.choose') }}</option>
+              <option v-for="s in seeds" :key="'sl' + s.id" :value="s.id">{{ s.icon }} {{ s.name }}</option>
             </select>
           </div>
-          <div class="form-group mt-15"><label>Quantité de godets *</label><input type="number" v-model="nouveauGodet.quantite" min="1" max="500" required /></div>
-          <div class="form-group mt-15"><label>Emplacement (Optionnel)</label><input type="text" v-model="nouveauGodet.emplacement" placeholder="Ex: Serre, Bord de fenêtre..." /></div>
+          <div class="form-group mt-15"><label>{{ t('seedlings.modal.quantity') }} *</label><input type="number" v-model.number="seedlingForm.quantity" min="1" max="500" required /></div>
+          <div class="form-group mt-15"><label>{{ t('seedlings.modal.location') }}</label><input type="text" v-model="seedlingForm.location" :placeholder="t('seedlings.modal.location_placeholder')" /></div>
           <div class="actions block-mobile">
-            <button type="button" class="btn-cancel full-width" @click="afficherModalGodet = false">Annuler</button>
-            <button type="submit" class="btn-submit full-width" :disabled="!grainotheque || grainotheque.length === 0">{{ modeEditionGodet ? 'Mettre à jour' : 'Semer' }}</button>
+            <button type="button" class="btn-cancel full-width" @click="seedlingModal = false">{{ t('common.cancel') }}</button>
+            <button type="submit" class="btn-submit full-width" :disabled="seeds.length === 0">{{ seedlingForm.id ? t('common.update') : t('seedlings.modal.sow') }}</button>
           </div>
         </form>
       </div>
     </div>
 
-    <div v-if="afficherModalPot" class="modal-overlay" @click.self="afficherModalPot = false">
+    <div v-if="potModal" class="modal-overlay" @click.self="potModal = false">
       <div class="modal modal-large">
-        <h3>{{ modeEditionPot ? 'Modifier ce pot' : 'Ajouter une plante en pot' }}</h3>
-        <form @submit.prevent="validerAjoutPot">
-          
+        <h3>{{ editingPot ? t('pots.modal.edit') : t('pots.modal.add') }}</h3>
+        <form @submit.prevent="savePot">
           <div class="form-row block-mobile">
-            <div class="form-group icone-selector-container full-width">
-              <label>Icône</label>
-              <div class="icone-selector">
-                <span v-for="ico in listeIconesPots" :key="ico" :class="['ico-choix', { 'ico-actif': nouveauPot.icone === ico }]" @click="nouveauPot.icone = ico">{{ ico }}</span>
+            <div class="form-group icon-picker-field full-width">
+              <label>{{ t('common.icon') }}</label>
+              <div class="icon-picker">
+                <span v-for="ico in POT_ICONS" :key="ico" :class="['icon-option', { 'icon-active': potForm.icon === ico }]" @click="potForm.icon = ico">{{ ico }}</span>
               </div>
             </div>
             <div class="form-group flex-grow full-width">
-              <label>Nom de la plante *</label>
-              <input v-model="nouveauPot.nom" required placeholder="Ex: Ficus, Menthe, Monstera..." />
+              <label>{{ t('pots.modal.name') }} *</label>
+              <input v-model="potForm.name" required :placeholder="t('pots.modal.name_placeholder')" />
             </div>
           </div>
-
           <div class="form-row block-mobile">
             <div class="form-group half full-width">
-              <label>Environnement *</label>
-              <select v-model="nouveauPot.environnement" required>
-                <option value="Interieur">🏠 Intérieur</option>
-                <option value="Exterieur">☀️ Extérieur</option>
+              <label>{{ t('pots.modal.environment') }} *</label>
+              <select v-model="potForm.environment" required>
+                <option value="indoor">🏠 {{ t('pots.indoor') }}</option>
+                <option value="outdoor">☀️ {{ t('pots.outdoor') }}</option>
               </select>
             </div>
             <div class="form-group half full-width">
-              <label>Besoin en eau *</label>
-              <select v-model="nouveauPot.arrosage" required>
-                <option v-for="freq in optionsArrosage" :key="freq.val" :value="freq.val">{{ freq.label }}</option>
+              <label>{{ t('seeds.modal.watering') }} *</label>
+              <select v-model="potForm.watering_interval" required>
+                <option v-for="n in WATERING_INTERVALS" :key="n" :value="n">{{ wateringLabel(n) }}</option>
               </select>
             </div>
           </div>
-
           <div class="form-group mt-15">
-            <label>Emplacement exact (Optionnel)</label>
-            <input type="text" v-model="nouveauPot.emplacement" placeholder="Ex: Salon, Véranda, Bord de fenêtre..." />
+            <label>{{ t('pots.modal.location') }}</label>
+            <input type="text" v-model="potForm.location" :placeholder="t('pots.modal.location_placeholder')" />
           </div>
-
           <div class="actions block-mobile mt-30">
-            <button type="button" class="btn-cancel full-width" @click="afficherModalPot = false">Annuler</button>
-            <button type="submit" class="btn-submit full-width">{{ modeEditionPot ? 'Mettre à jour' : 'Ajouter le pot' }}</button>
+            <button type="button" class="btn-cancel full-width" @click="potModal = false">{{ t('common.cancel') }}</button>
+            <button type="submit" class="btn-submit full-width">{{ editingPot ? t('common.update') : t('pots.modal.add_button') }}</button>
           </div>
         </form>
       </div>
     </div>
 
-    <div v-if="afficherModalPlantation" class="modal-overlay" @click.self="fermerModalPlantation">
+    <div v-if="plantingBed" class="modal-overlay" @click.self="plantingBed = null">
       <div class="modal">
-        <h3>Planter dans ce bac</h3>
-        <form @submit.prevent="validerPlantation">
+        <h3>{{ t('garden.planting.title') }}</h3>
+        <form @submit.prevent="savePlanting">
           <div class="form-group">
-            <label>Variété à repiquer/planter</label>
-            <select v-model="nouvellePlantation.graine" required>
-              <option disabled value="">-- Choisissez --</option>
-              <option v-for="g in grainotheque" :key="'p'+g.id" :value="g">{{ g.icone }} {{ g.nom }}</option>
+            <label>{{ t('garden.planting.variety') }}</label>
+            <select v-model="plantingForm.seed" required>
+              <option disabled :value="null">{{ t('common.choose') }}</option>
+              <option v-for="s in seeds" :key="'p' + s.id" :value="s">{{ s.icon }} {{ s.name }}</option>
             </select>
           </div>
-
-          <div v-if="nouvellePlantation.graine && parcelleSelectionnee && obtenirPlantesUniquesNoms(parcelleSelectionnee).length > 0">
-            <div v-if="analyseAssociation?.fav?.length > 0" class="alerte-assoc box-fav">
-              <span class="assoc-icon">✨</span> <div><strong>Association favorable détectée !</strong><br>Cette plante stimulera le développement avec : {{ analyseAssociation.fav.join(', ') }}</div>
+          <template v-if="plantingForm.seed">
+            <div v-if="companionCheck.good.length > 0" class="companion-alert box-good">
+              <span class="companion-icon">✨</span> <div><strong>{{ t('garden.planting.good_title') }}</strong><br>{{ t('garden.planting.good_text', { names: companionCheck.good.join(', ') }) }}</div>
             </div>
-            <div v-if="analyseAssociation?.defav?.length > 0" class="alerte-assoc box-defav">
-              <span class="assoc-icon">⚠️</span> <div><strong>Attention, association déconseillée.</strong><br>Évitez la proximité avec : {{ analyseAssociation.defav.join(', ') }}</div>
+            <div v-if="companionCheck.bad.length > 0" class="companion-alert box-bad">
+              <span class="companion-icon">⚠️</span> <div><strong>{{ t('garden.planting.bad_title') }}</strong><br>{{ t('garden.planting.bad_text', { names: companionCheck.bad.join(', ') }) }}</div>
             </div>
-          </div>
-
-          <div class="form-group mt-15"><label>Quantité</label><input type="number" v-model="nouvellePlantation.quantite" min="1" max="1000" required /></div>
-          <div class="actions block-mobile"><button type="button" class="btn-cancel full-width" @click="fermerModalPlantation">Annuler</button><button type="submit" class="btn-submit full-width">Planter</button></div>
+          </template>
+          <div class="form-group mt-15"><label>{{ t('garden.planting.quantity') }}</label><input type="number" v-model.number="plantingForm.quantity" min="1" max="1000" required /></div>
+          <div class="actions block-mobile"><button type="button" class="btn-cancel full-width" @click="plantingBed = null">{{ t('common.cancel') }}</button><button type="submit" class="btn-submit full-width">{{ t('garden.planting.submit') }}</button></div>
         </form>
       </div>
     </div>
 
-    <div v-if="afficherModalGestionBac" class="modal-overlay" @click.self="afficherModalGestionBac = false">
+    <div v-if="managedBed" class="modal-overlay" @click.self="managedBed = null">
       <div class="modal modal-large">
-        <h3>Gérer ce bac</h3>
-        <div class="form-group mb-15"><label>Nom de la parcelle</label><input type="text" v-model="parcelleEnGestion.nom" @change="syncParcellesForcer" placeholder="Ex: Bac des aromates..." /></div>
-        <p class="modal-desc">Modifiez les quantités, ou retirez des variétés.</p>
-        <div v-if="!plantesEnGestion || plantesEnGestion.length === 0" class="etat-vide-petit">Ce bac est vide pour l'instant.</div>
-        <div class="liste-gestion-plantes" v-else>
-          <div v-for="(plante, i) in plantesEnGestion" :key="i" class="item-gestion block-mobile">
+        <h3>{{ t('garden.manage.title') }}</h3>
+        <div class="form-group mb-15"><label>{{ t('garden.manage.name') }}</label><input type="text" v-model="managedBed.name" :placeholder="t('garden.manage.name_placeholder')" /></div>
+        <p class="modal-desc">{{ t('garden.manage.desc') }}</p>
+        <div v-if="managedBed.plantings.length === 0" class="empty-state-small">{{ t('garden.manage.empty') }}</div>
+        <div class="manage-list" v-else>
+          <div v-for="(plant, i) in managedBed.plantings" :key="i" class="manage-item block-mobile">
             <div class="item-info">
-              <span class="item-icone">{{ plante.icone }}</span>
+              <span class="item-icon">{{ plant.icon }}</span>
               <div class="item-details-flex">
-                <span class="item-nom">{{ plante.nom }}</span>
-                <input type="month" v-model="plante.date_plantation" class="input-date-petit" title="Mois de plantation" @change="syncParcellesForcer" />
+                <span>{{ plant.name }}</span>
+                <input type="month" v-model="plant.planted_on" class="input-date-small" :title="t('garden.manage.planted_on')" />
               </div>
             </div>
             <div class="item-actions mt-mobile">
-              <input type="number" v-model="plante.quantite" min="1" class="input-qte-petit" @change="syncParcellesForcer" />
-              <button class="btn-icon rouge" @click="retirerPlanteDuBac(i)">×</button>
+              <input type="number" v-model.number="plant.quantity" min="1" class="input-qty-small" />
+              <button class="btn-icon danger" @click="removePlanting(i)">×</button>
             </div>
           </div>
         </div>
-        <div class="actions mt-30 block-mobile"><button type="button" class="btn-submit full-width" @click="afficherModalGestionBac = false">Terminer</button></div>
+        <div class="actions mt-30 block-mobile"><button type="button" class="btn-submit full-width" @click="managedBed = null">{{ t('common.done') }}</button></div>
       </div>
     </div>
 
-    <div v-if="afficherConfirm" class="modal-overlay" style="z-index: 9999;" @click.self="annulerConfirmation">
+    <div v-if="confirmDialog" class="modal-overlay" style="z-index: 9999;" @click.self="confirmDialog = null">
       <div class="modal modal-confirm">
-        <div class="confirm-icon">⚠️</div>
-        <h3>Confirmation</h3>
-        <p class="modal-desc" style="text-align: center;">{{ confirmMessage }}</p>
-        <div class="actions" style="justify-content: center;">
-          <button type="button" class="btn-cancel" @click="annulerConfirmation">Annuler</button>
-          <button type="button" class="btn-submit btn-danger" @click="validerConfirmation">Oui</button>
+        <div class="confirm-icon">{{ confirmDialog.action ? '⚠️' : 'ℹ️' }}</div>
+        <h3>{{ confirmDialog.action ? t('common.confirm_title') : t('common.info_title') }}</h3>
+        <p class="modal-desc" style="text-align: center;">{{ confirmDialog.message }}</p>
+        <div class="actions">
+          <template v-if="confirmDialog.action">
+            <button type="button" class="btn-cancel" @click="confirmDialog = null">{{ t('common.cancel') }}</button>
+            <button type="button" class="btn-submit btn-danger" @click="runConfirm">{{ t('common.yes') }}</button>
+          </template>
+          <button v-else type="button" class="btn-submit" @click="confirmDialog = null">{{ t('common.ok') }}</button>
         </div>
       </div>
     </div>
-
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
-import logoImg from './assets/logo.png'
+import { ref, computed, onMounted, watch } from 'vue';
+import logoImg from './assets/logo.png';
+import { Icon } from './icons.js';
+import { t, locale, setLocale, LOCALES } from './i18n.js';
+import {
+  CATEGORIES, SOILS, WATERING_INTERVALS, TREE_SIZES, SEED_ICONS, DECOR_ICONS, POT_ICONS,
+  COMPANIONS, ROTATION, FAMILY_NEEDS, SOIL_TIPS, plantName, findPlant, companionship,
+} from './reference.js';
 
-const vueActive = ref('potager')
-const menuReduit = ref(false)
-const menuMobileOuvert = ref(false)
-const parcelles = ref([])
-const grainotheque = ref([])
-const godets = ref([]) 
-const pots = ref([])
+const NAV = [
+  { view: 'garden', icon: 'map' },
+  { view: 'seeds', icon: 'book' },
+  { view: 'seedlings', icon: 'sprout' },
+  { view: 'pots', icon: 'pot' },
+  { view: 'companions', icon: 'heart' },
+  { view: 'rotation', icon: 'rotate' },
+  { view: 'notifications', icon: 'bell' },
+  { view: 'overview', icon: 'dashboard' },
+  { view: 'homeassistant', icon: 'home' },
+  { view: 'settings', icon: 'settings' },
+];
+const DAY_MS = 1000 * 3600 * 24;
+const DEFAULT_WATERING_INTERVAL = 7;
 
-const afficherConfirm = ref(false);
-const confirmMessage = ref('');
-const confirmAction = ref(null);
+// --- Layout ---
+const activeView = ref('garden');
+const menuCollapsed = ref(false);
+const mobileMenuOpen = ref(false);
+function showView(view) { activeView.value = view; mobileMenuOpen.value = false; }
 
-function demanderConfirmation(msg, action) {
-  confirmMessage.value = msg;
-  confirmAction.value = action;
-  afficherConfirm.value = true;
+// --- Garden data ---
+const seeds = ref([]);
+const plots = ref([]);
+const seedlings = ref([]);
+const pots = ref([]);
+const settings = ref({ webhook_url: '', webhook_watering_alert: true, webhook_rain_alert: true, webhook_time: '10:00', city: '', language: locale.value });
+
+// --- Confirmation / information dialog ---
+const confirmDialog = ref(null);
+function askConfirmation(message, action) { confirmDialog.value = { message, action }; }
+function showInfo(message) { confirmDialog.value = { message, action: null }; }
+function runConfirm() { const action = confirmDialog.value?.action; confirmDialog.value = null; if (action) action(); }
+
+// --- Formatting helpers ---
+const capitalize = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+const monthName = (m) => capitalize(new Date(2000, m - 1, 1).toLocaleDateString(locale.value, { month: 'long' }));
+const shortMonth = (m) => capitalize(new Date(2000, m - 1, 1).toLocaleDateString(locale.value, { month: 'short' }));
+const weekday = (dateStr) => new Date(dateStr).toLocaleDateString(locale.value, { weekday: 'short' });
+const formatDate = (ms) => new Date(ms).toLocaleDateString(locale.value, { day: 'numeric', month: 'short', year: 'numeric' });
+const currentYearMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+const escapeHtml = (text) => String(text ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function formatMonthYear(yyyymm) {
+  const [year, month] = (yyyymm || '').split('-').map(Number);
+  if (!year || !month) return t('common.unknown_date');
+  return `${monthName(month)} ${year}`;
 }
-function annulerConfirmation() { afficherConfirm.value = false; confirmAction.value = null; }
-function validerConfirmation() { if (confirmAction.value) confirmAction.value(); afficherConfirm.value = false; confirmAction.value = null; }
+function wateringLabel(days) { return WATERING_INTERVALS.includes(days) ? t(`watering.${days}`) : t('watering.custom', { n: days }); }
+function categoryLabel(category) { return category ? t(`category.${category}`, {}, category) : t('common.unknown'); }
+// French typography puts a space before the colon
+function label(key) { return t('common.label', { text: t(key) }); }
+function isExpired(expiry) { return Boolean(expiry) && expiry < currentYearMonth(); }
 
-function changerVue(vue) {
-  vueActive.value = vue;
-  menuMobileOuvert.value = false;
+// --- Authentication ---
+const SESSION_KEY = 'msg_session';
+function readSession() { try { return localStorage.getItem(SESSION_KEY) || ''; } catch (e) { return ''; } }
+const sessionToken = ref(readSession());
+const needsLogin = ref(false);
+const loginForm = ref({ username: '', password: '' });
+const loginError = ref('');
+const loggingIn = ref(false);
+const username = ref('');
+const defaultCredentials = ref(false);
+
+async function api(path, options = {}) {
+  const headers = { ...(options.headers || {}), Authorization: `Bearer ${sessionToken.value}` };
+  if (options.json !== undefined) {
+    headers['Content-Type'] = 'application/json';
+    options = { ...options, body: options.json };
+  }
+  const res = await fetch(path, { ...options, headers });
+  if (res.status === 401) requireLogin();
+  return res;
 }
 
-const saisonActive = ref('ete') 
-const basculerSaison = () => { saisonActive.value = saisonActive.value === 'ete' ? 'hiver' : 'ete'; }
+function requireLogin() {
+  sessionToken.value = '';
+  try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+  needsLogin.value = true;
+}
 
-const typesPlantes = ['Légume-fruit', 'Légume-racine', 'Légume-feuille', 'Fleur compagne', 'Bulbe', 'Aromatique', 'Céréale']
-const typesSols = ['Argileux (Lourd)', 'Sableux (Léger)', 'Limoneux (Riche)', 'Humifère (Terreau)', 'Calcaire', 'Tout type de sol']
-const mois = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
-const listeIcones = ['🌱','🌿','🍅','🥕','🥔','🥬','🧅','🧄','🥦','🥒','🍆','🌶️','🌽','🍓','🍈','🍉','🎃','🌼','🌻','🪻']
-const listeDecos = ['🪑', '🪣', '🦆', '🦔', '🐝', '🐌', '🦉', '🦋', '🐈', '🐸', '🪵', '⛲', '🪨', '🍄', '🛒', '🚲']
-const listeIconesPots = ['🪴', '🌵', '🌴', '🌲', '🌳', '🌿', '☘️', '🍀', '🍃', '🌸', '🌼', '🪻', '🌻', '🌺', '🌹', '🌾', '🍋', '🍅', '🌶️']
+async function login() {
+  loginError.value = '';
+  loggingIn.value = true;
+  try {
+    const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(loginForm.value) });
+    if (!res.ok) { loginError.value = t('login.invalid'); return; }
+    const { token } = await res.json();
+    sessionToken.value = token;
+    try { localStorage.setItem(SESSION_KEY, token); } catch (e) {}
+    needsLogin.value = false;
+    loginForm.value = { username: '', password: '' };
+    await loadAll();
+  } catch (e) {
+    loginError.value = t('login.unreachable');
+  } finally {
+    loggingIn.value = false;
+  }
+}
 
-const centreTerrain = 5000;
-const backendUrl = ""; 
+async function logout() {
+  try { await api('/api/auth/logout', { method: 'POST' }); } catch (e) {}
+  requireLogin();
+  window.location.reload();
+}
+
+// --- Synchronisation with the server ---
+// Keys starting with "_" are UI-only state (e.g. the watering animation) and are never saved
+const serialize = (data) => JSON.stringify(data, (key, value) => (key.startsWith('_') ? undefined : value));
+function debounce(fn, delay) { let timer; return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); }; }
+
+function createSync(path, cacheKey) {
+  let lastSaved = null;
+  const save = debounce(async (data) => {
+    const body = serialize(data);
+    if (body === lastSaved) return;
+    try { if (cacheKey) localStorage.setItem(cacheKey, body); } catch (e) {}
+    try {
+      const res = await api(path, { method: 'PUT', json: body });
+      if (res.ok) lastSaved = body;
+    } catch (e) {}
+  }, 800);
+  return { save, markSaved: (data) => { lastSaved = serialize(data); } };
+}
+
+const syncs = {
+  seeds: createSync('/api/seeds', 'msg_cache_seeds'),
+  plots: createSync('/api/plots', 'msg_cache_plots'),
+  seedlings: createSync('/api/seedlings', 'msg_cache_seedlings'),
+  pots: createSync('/api/pots', 'msg_cache_pots'),
+  settings: createSync('/api/settings', null),
+};
+const collections = { seeds, plots, seedlings, pots, settings };
+for (const [name, store] of Object.entries(collections)) {
+  watch(store, (value) => syncs[name].save(value), { deep: true });
+}
+
+async function loadCollection(name) {
+  const store = collections[name];
+  try {
+    const res = await api(`/api/${name}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    store.value = name === 'settings' ? { ...store.value, ...data } : data;
+  } catch (e) {
+    // Server unreachable: fall back to the copy cached in this browser
+    try { const cached = localStorage.getItem(`msg_cache_${name}`); if (cached) store.value = JSON.parse(cached); } catch (_) {}
+  }
+  syncs[name].markSaved(store.value);
+}
+
+async function loadAll() {
+  await Promise.all(Object.keys(collections).map(loadCollection));
+  if (settings.value.language && settings.value.language !== locale.value) setLocale(settings.value.language);
+  if (settings.value.city) loadWeather();
+  loadAccount();
+  loadApiKeys();
+}
+
+async function loadAccount() {
+  try {
+    const res = await api('/api/auth/me');
+    if (res.ok) { const me = await res.json(); username.value = me.username; defaultCredentials.value = me.default_credentials; }
+  } catch (e) {}
+}
 
 onMounted(() => {
-  let link = document.querySelector("link[rel~='icon']");
-  if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.getElementsByTagName('head')[0].appendChild(link); }
-  link.href = "data:image/svg+xml," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍑</text></svg>");
+  if (sessionToken.value) loadAll();
+  else needsLogin.value = true;
 });
 
-const optionsArrosage = [
-  { label: 'Tous les jours (1j)', val: 1 }, 
-  { label: 'Tous les 2 jours (2j)', val: 2 }, 
-  { label: 'Tous les 3 jours (3j)', val: 3 }, 
-  { label: '1 fois par semaine (7j)', val: 7 }, 
-  { label: '1 fois toutes les 2 semaines (14j)', val: 14 },
-  { label: '1 fois par mois (30j)', val: 30 }
-];
-const getArrosageLabel = (val) => { const opt = optionsArrosage.find(o => o.val === val); return opt ? opt.label : val + 'j'; }
-const getCurrentYearMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
-
-function formatMoisAnnee(yyyymm) { 
-  if (!yyyymm) return 'Date inconnue'; 
-  const parts = yyyymm.split('-'); 
-  if(parts.length < 2) return 'Date inconnue';
-  return `${mois[parseInt(parts[1], 10) - 1]} ${parts[0]}`; 
+function changeLanguage(value) {
+  setLocale(value);
+  settings.value.language = value;
 }
 
-function estPerimee(peremptionStr) {
-  if (!peremptionStr) return false;
-  const today = new Date();
-  const currentYearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-  return peremptionStr < currentYearMonth;
+// --- Watering ---
+function daysSince(ms) { return (Date.now() - (ms || 0)) / DAY_MS; }
+
+function bedNeedsWater(bed) {
+  if (!bed || bed.type !== 'bed' || !bed.plantings?.length) return false;
+  const intervals = bed.plantings
+    .map(p => seeds.value.find(s => s.id === p.seed_id)?.watering_interval)
+    .filter(n => n > 0);
+  const interval = intervals.length ? Math.min(...intervals) : DEFAULT_WATERING_INTERVAL;
+  return daysSince(bed.last_watered) >= interval;
+}
+function potNeedsWater(pot) { return pot.watering_interval > 0 && daysSince(pot.last_watered) >= pot.watering_interval; }
+
+function animateWatering(item) {
+  item._watering = true;
+  item.last_watered = Date.now();
+  setTimeout(() => { item._watering = false; }, 2000);
+}
+function waterBed(bed) { animateWatering(bed); }
+function waterPot(pot) { animateWatering(pot); }
+
+const globalRain = ref(false);
+function waterEverything() {
+  globalRain.value = true;
+  plots.value.filter(bedNeedsWater).forEach(animateWatering);
+  pots.value.filter(potNeedsWater).forEach(animateWatering);
+  setTimeout(() => { globalRain.value = false; }, 2500);
 }
 
-const dbAssociations = [
-  { plante: "Ail", fav: ["betterave", "carotte", "chou", "fraise", "laitue", "tomate"], defav: ["asperge", "haricot", "persil", "pois", "poireau", "pomme de terre"] },
-  { plante: "Aubergine", fav: ["ail", "calendula", "estragon", "haricot", "laitue", "menthe", "oignon", "persil", "piment", "pois", "souci", "thym", "tomate"], defav: ["pomme de terre"] },
-  { plante: "Basilic", fav: ["poivron", "tomate", "concombre", "cornichon", "courge", "melon", "chou", "fève", "courgette", "fenouil", "asperge"], defav: ["rue", "absinthe"] },
-  { plante: "Bette", fav: ["oignon"], defav: ["carotte"] },
-  { plante: "Betterave", fav: ["céleri", "chou", "chou-fleur", "chou-rave", "laitue", "oignon", "radis"], defav: ["asperge", "carotte", "haricot", "tomate"] },
-  { plante: "Carotte", fav: ["betterave", "coriandre", "pois", "laitue", "roquette", "panais", "salsifis", "poivron", "lin", "persil", "poireau", "sauge", "tomate", "radis", "ail", "ciboulette", "échalotte", "oignon"], defav: ["fraise", "menthe", "maïs", "bette"] },
-  { plante: "Céleri", fav: ["poireau", "chou"], defav: ["carotte", "maïs", "persil"] },
-  { plante: "Cerfeuil", fav: ["radis", "salade", "chou-fleur", "chicorée"], defav: [] },
-  { plante: "Chicorée", fav: ["epinard", "roquette", "souci", "cerfeuil"], defav: ["chou de bruxelles", "asperge", "navet"] },
-  { plante: "Chou", fav: ["aneth", "betterave", "céleri", "epinard", "laitue", "haricot", "romarin", "sauge", "camomille", "géranium", "menthe", "pomme de terre"], defav: ["échalote", "fenouil", "fraise", "haricot en grain", "pâtisson", "poireau", "poivron", "radis", "tomate", "vigne"] },
-  { plante: "Coriandre", fav: ["betterave", "carotte", "concombre", "chou", "pomme de terre"], defav: ["fenouil", "sauge"] },
-  { plante: "Concombre", fav: ["aneth", "haricot", "laitue", "maïs", "oignon", "basilic"], defav: ["melon", "pomme de terre", "tomate", "raifort"] },
-  { plante: "Courge", fav: ["asperge", "céleri", "chou", "laitue", "mâche", "pois", "oignon", "basilic", "ciboulette", "coriandre", "origan", "capucine", "tanaisie", "tournesol"], defav: ["radis", "fenouil"] },
-  { plante: "Courgette", fav: ["asperge", "céleri", "chou", "laitue", "mâche", "pois", "oignon", "basilic", "ciboulette", "coriandre", "origan", "capucine", "tanaisie", "tournesol"], defav: ["radis", "fenouil"] },
-  { plante: "Épinard", fav: ["aubergine", "chou", "artichaut", "chicorée", "fraisier", "fève", "haricot", "pois", "laitue", "oignon", "poireau", "radis", "fraise", "thym"], defav: ["bette", "betterave", "pomme de terre", "tomate", "poivron"] },
-  { plante: "Fenouil", fav: ["céleri-rave", "poireau", "basilic"], defav: ["tomate", "absinthe", "concombre", "poivron", "épinard", "haricot", "courge", "souci", "navet", "chou", "coriandre", "carvi"] },
-  { plante: "Fève", fav: ["carotte", "céleri", "chou", "pomme de terre", "maïs", "laitue", "sarriette", "basilic"], defav: ["ail", "betterave", "oignon", "poireau", "pomme de terre"] },
-  { plante: "Fraise", fav: ["poireau", "thym"], defav: ["chou"] },
-  { plante: "Haricot", fav: ["maïs", "potiron", "chou", "melon", "pastèque", "carotte", "céleri", "concombre", "pomme de terre", "épinard", "laitue", "bourrache", "capucine", "sarriette", "tournesol", "absinthe"], defav: ["poireau", "ail", "échalote", "oignon", "ciboulette", "fenouil", "pois", "courgette"] },
-  { plante: "Laitue", fav: ["chou", "carotte", "oignon", "cardon", "pois", "betterave", "bette", "courge", "fève", "fraisier", "melon", "haricot", "navet", "poireau", "artichaut", "cerfeuil", "aneth", "lin"], defav: ["maïs", "panais"] },
-  { plante: "Mâche", fav: ["chou", "oignon", "poireau"], defav: ["amaranthe"] },
-  { plante: "Maïs", fav: ["betterave", "haricot", "pois", "potiron", "tournesol"], defav: ["laitue", "oignon"] },
-  { plante: "Melon", fav: ["laitue", "basilic", "haricot", "pastèque"], defav: ["concombre"] },
-  { plante: "Navet", fav: ["laitue", "menthe", "pois", "romarin"], defav: ["ail"] },
-  { plante: "Oignon", fav: ["betterave", "camomille", "carotte", "fenouil", "fraise", "laitue", "mâche", "radis", "tomate", "chou", "pomme de terre"], defav: ["chou", "fève", "haricot", "maïs", "persil", "poireau", "pois"] },
-  { plante: "Panais", fav: ["radis", "betterave", "chou-rave", "oignon"], defav: ["aneth", "laitue"] },
-  { plante: "Persil", fav: ["radis", "tomate", "rosier", "artichaut", "asperge"], defav: ["céleri", "pois", "laitue", "poireau"] },
-  { plante: "Piment", fav: ["basilic", "carotte", "livèche", "marjolaine", "tomate", "aubergine", "oignon"], defav: ["fenouil", "chou-rave", "patate douce", "haricot"] },
-  { plante: "Poivron", fav: ["basilic", "carotte", "livèche", "marjolaine", "tomate", "aubergine", "oignon"], defav: ["fenouil", "chou-rave", "patate douce", "haricot"] },
-  { plante: "Pomme de terre", fav: ["bourrache", "chou", "coriandre", "échalote", "fève", "haricot", "laitue", "œillet", "pois", "radis", "souci"], defav: ["tournesol", "maïs", "ail", "oignon"] },
-  { plante: "Poireau", fav: ["carotte", "céleri", "fraise", "tomate", "asperge", "laitue", "mâche", "fenouil", "artichaut", "moutarde", "cresson"], defav: ["bette", "betterave", "chou", "haricot", "persil", "pois"] },
-  { plante: "Pois", fav: ["pomme de terre", "coriandre", "ricin", "chou", "céleri", "carotte", "asperge", "laitue", "radis", "haricot", "maïs", "navet", "courge", "concombre", "tournesol", "carvi", "sarriette"], defav: ["ail", "échalote", "oignon", "persil", "poireau", "ciboulette"] },
-  { plante: "Radis", fav: ["cresson", "cerfeuil", "panais", "carotte", "pois", "concombre", "cornichon", "épinard", "haricot", "céleri-rave", "pomme de terre", "tomate", "oignon"], defav: ["chou", "ciboulette", "courgette", "tournesol", "sarriette"] },
-  { plante: "Tomate", fav: ["aneth", "basilic", "persil", "carotte", "céleri", "cosmos", "camomille", "chou", "oeillet", "pastèque", "concombre", "radis", "tétragone", "capucine", "maïs"], defav: ["fenouil", "tournesol", "betterave", "bette", "pois", "chou-rave"] }
-];
+const bedAlerts = computed(() => plots.value.filter(bedNeedsWater).map(bed => ({ bed, days: Math.floor(daysSince(bed.last_watered)) })));
+const potAlerts = computed(() => pots.value.filter(potNeedsWater).map(pot => ({
+  pot,
+  days: Math.floor(daysSince(pot.last_watered)),
+  place: t(`pots.${pot.environment}`) + (pot.location ? ` - ${pot.location}` : ''),
+})));
+const thirstyCount = computed(() => bedAlerts.value.length + potAlerts.value.length);
 
-const rotationCategories = [
-  { id: 'legumineuses', nom: 'Légumineuses (Graines)', desc: 'Elles captent l\'azote de l\'air pour enrichir la terre. C\'est le point de départ idéal.', plantes: ["Fève", "Haricot", "Pois"] },
-  { id: 'feuilles', nom: 'Légumes-Feuilles', desc: 'Ils profitent de l\'azote abondant laissé par les légumineuses l\'année précédente.', plantes: ["Basilic", "Bette", "Céleri", "Cerfeuil", "Chicorée", "Chou", "Coriandre", "Épinard", "Fenouil", "Laitue", "Mâche", "Persil", "Poireau"] },
-  { id: 'racines', nom: 'Légumes-Racines & Bulbes', desc: 'Ils puisent le reste des nutriments en profondeur et ameublissent le sol.', plantes: ["Ail", "Betterave", "Carotte", "Navet", "Oignon", "Panais", "Pomme de terre", "Radis"] },
-  { id: 'fruits', nom: 'Légumes-Fruits', desc: 'Très gourmands ! Ils nécessitent souvent un ajout de compost avant d\'être plantés.', plantes: ["Aubergine", "Concombre", "Courge", "Courgette", "Fraise", "Maïs", "Melon", "Piment", "Poivron", "Tomate"] }
-];
-
-const enrichissementSaisons = [
-  { saison: 'Printemps', icone: '🌱', texte: 'Apport de compost mûr et de fumier composté. Idéal pour préparer la terre des légumes gourmands (Légumes-Fruits).' },
-  { saison: 'Été', icone: '☀️', texte: 'Paillage (tonte séchée, paille) pour nourrir le sol en surface et retenir l\'eau. Apport de purin (ortie, consoude) pour booster la croissance.' },
-  { saison: 'Automne', icone: '🍂', texte: 'Épandage de compost demi-mûr ou fumier frais en surface (sans enfouir). Couverture avec un épais paillis de feuilles mortes.' },
-  { saison: 'Hiver', icone: '❄️', texte: 'Semis d\'engrais verts (moutarde, phacélie) sur les parcelles vides. Ne laissez jamais un sol nu pour protéger la vie microbienne.' }
-];
-
-const besoinsFamilles = [
-  { plante: 'Tomate, Aubergine, Poivron', type: 'fruits', labelType: 'Légumes-Fruits', arrosage: '💦 Abondant (au pied)', saison: '☀️ Été', soleil: '☀️ Plein soleil', plantation: 'Mai - Juin' },
-  { plante: 'Courge, Courgette, Melon', type: 'fruits', labelType: 'Légumes-Fruits', arrosage: '💦 Très abondant', saison: '☀️ Été', soleil: '☀️ Plein soleil', plantation: 'Mai' },
-  { plante: 'Fraise', type: 'fruits', labelType: 'Petits Fruits', arrosage: '💧 Régulier', saison: '🌱 Printemps / ☀️ Été', soleil: '☀️ Soleil / ⛅ Mi-ombre', plantation: 'Sept-Oct / Mars-Avril' },
-  { plante: 'Laitue, Épinard, Mâche', type: 'feuilles', labelType: 'Légumes-Feuilles', arrosage: '💧 Régulier (craint le sec)', saison: '🌱 Printemps / 🍂 Automne', soleil: '⛅ Mi-ombre', plantation: 'Mars - Septembre' },
-  { plante: 'Chou, Brocoli, Chou-fleur', type: 'feuilles', labelType: 'Légumes-Feuilles', arrosage: '💦 Abondant', saison: '❄️ Toute l\'année', soleil: '☀️ Soleil / ⛅ Mi-ombre', plantation: 'Mars - Août' },
-  { plante: 'Aromatiques (Basilic, Persil...)', type: 'feuilles', labelType: 'Aromatiques', arrosage: '🌱 Modéré à faible', saison: '☀️ Été', soleil: '☀️ Soleil / ⛅ Mi-ombre', plantation: 'Avril - Mai' },
-  { plante: 'Carotte, Panais', type: 'racines', labelType: 'Légumes-Racines', arrosage: '🌱 Faible à modéré', saison: '☀️ Été / 🍂 Automne', soleil: '☀️ Plein soleil', plantation: 'Mars - Juillet' },
-  { plante: 'Radis, Navet', type: 'racines', labelType: 'Légumes-Racines', arrosage: '💧 Régulier (évite le piquant)', saison: '🌱 Printemps / 🍂 Automne', soleil: '⛅ Mi-ombre / ☀️ Soleil', plantation: 'Mars - Septembre' },
-  { plante: 'Ail, Oignon, Échalote', type: 'racines', labelType: 'Bulbes', arrosage: '🌵 Très faible (craint l\'eau)', saison: '☀️ Été', soleil: '☀️ Plein soleil', plantation: 'Fév-Mars / Oct-Nov' },
-  { plante: 'Pomme de terre', type: 'racines', labelType: 'Tubercules', arrosage: '💧 Modéré', saison: '☀️ Été / 🍂 Automne', soleil: '☀️ Plein soleil', plantation: 'Mars - Mai' },
-  { plante: 'Haricot, Pois, Fève', type: 'legumineuses', labelType: 'Légumineuses', arrosage: '💧 Régulier (surtout floraison)', saison: '🌱 Printemps / ☀️ Été', soleil: '☀️ Plein soleil', plantation: 'Fév - Juillet' }
-];
-
-const rechercheConseil = ref('');
-const conseilsFiltres = computed(() => { if(!rechercheConseil.value) return dbAssociations; return dbAssociations.filter(a => (a.plante || '').toLowerCase().includes((rechercheConseil.value || '').toLowerCase())); });
-
-function normaliserTexte(str) { return (str || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim(); }
-
-function verifierLien(planteA, planteB) { 
-  const normA = normaliserTexte(planteA); const normB = normaliserTexte(planteB); 
-  const objA = dbAssociations.find(a => normaliserTexte(a.plante).includes(normA) || normA.includes(normaliserTexte(a.plante))); 
-  const objB = dbAssociations.find(b => normaliserTexte(b.plante).includes(normB) || normB.includes(normaliserTexte(b.plante))); 
-  let isFav = false; let isDefav = false; 
-  if (objA?.fav) { 
-    if (objA.fav.some(f => normB.includes(normaliserTexte(f)) || normaliserTexte(f).includes(normB))) isFav = true; 
-    if (objA.defav?.some(f => normB.includes(normaliserTexte(f)) || normaliserTexte(f).includes(normB))) isDefav = true; 
-  } 
-  if (objB?.fav) { 
-    if (objB.fav.some(f => normA.includes(normaliserTexte(f)) || normaliserTexte(f).includes(normA))) isFav = true; 
-    if (objB.defav?.some(f => normA.includes(normaliserTexte(f)) || normaliserTexte(f).includes(normA))) isDefav = true; 
-  } 
-  return { isFav, isDefav }; 
-}
-
-function aConflit(parcelle) { 
-  if (!parcelle || parcelle.type !== 'bac') return false; 
-  const plantations = saisonActive.value === 'ete' ? (parcelle.plantations_ete || []) : (parcelle.plantations_hiver || []); 
-  const noms = [...new Set(plantations.map(p => p.nom))]; 
-  for (let i = 0; i < noms.length; i++) { 
-    for (let j = i + 1; j < noms.length; j++) { 
-      if (verifierLien(noms[i], noms[j]).isDefav) return true; 
-    } 
-  } 
-  return false; 
-}
-
-function obtenirPlantesUniquesNoms(parcelle) { 
-  if (!parcelle || parcelle.type !== 'bac') return []; 
-  const plantations = saisonActive.value === 'ete' ? (parcelle.plantations_ete || []) : (parcelle.plantations_hiver || []); 
-  return [...new Set(plantations.map(p => p.nom))]; 
-}
-
-const analyseAssociation = computed(() => { 
-  let favs = []; let defavs = []; 
-  if (!parcelleSelectionnee.value || !nouvellePlantation.value.graine) return { fav: [], defav: [] }; 
-  const cibleNom = nouvellePlantation.value.graine.nom; 
-  const existantes = obtenirPlantesUniquesNoms(parcelleSelectionnee.value); 
-  existantes.forEach(nom => { 
-    const res = verifierLien(cibleNom, nom); 
-    if (res?.isFav) favs.push(nom); 
-    if (res?.isDefav) defavs.push(nom); 
-  }); 
-  return { fav: [...new Set(favs)], defav: [...new Set(defavs)] }; 
+const calendarAlerts = computed(() => {
+  const current = new Date().getMonth() + 1;
+  const alerts = [];
+  for (const seed of seeds.value) {
+    for (const [type, month] of [['tray', seed.tray_start], ['planting', seed.planting_start]]) {
+      if (!month) continue;
+      const distance = (month - current + 12) % 12;
+      if (distance <= 1) alerts.push({ type, plant: seed.name, icon: seed.icon, distance, month });
+    }
+  }
+  return alerts.sort((a, b) => a.distance - b.distance);
 });
+const alertCount = computed(() => thirstyCount.value + calendarAlerts.value.length);
 
-const fileInputImport = ref(null);
-const afficherModalImport = ref(false);
-const donneesImportEnAttente = ref([]);
+// --- Seed library ---
+const seedSearch = ref('');
+const seedCategoryFilter = ref('');
+const seedStockFilter = ref('all');
+const filteredSeeds = computed(() => seeds.value.filter(s => {
+  const matchesName = (s.name || '').toLowerCase().includes(seedSearch.value.toLowerCase());
+  const matchesCategory = !seedCategoryFilter.value || s.category === seedCategoryFilter.value;
+  const matchesStock = seedStockFilter.value === 'all' || (seedStockFilter.value === 'in_stock' ? s.in_stock : !s.in_stock);
+  return matchesName && matchesCategory && matchesStock;
+}));
 
-function exporterGrainotheque() {
-  const dataStr = JSON.stringify(grainotheque.value, null, 2);
-  const blob = new Blob([dataStr], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const dateStr = new Date().toISOString().split('T')[0];
-  
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `grainotheque_export_${dateStr}.json`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+const EMPTY_SEED = {
+  id: null, name: '', category: 'fruit_vegetable', icon: '🌱', soil: '', watering_interval: DEFAULT_WATERING_INTERVAL,
+  tray_start: null, tray_end: null, planting_start: null, planting_end: null, harvest_start: null, harvest_end: null,
+  in_stock: true, expiry: '', is_plant: false,
+};
+const seedModal = ref(false);
+const editingSeed = ref(false);
+const seedForm = ref({ ...EMPTY_SEED });
+function openSeedModal(seed = null) {
+  editingSeed.value = Boolean(seed);
+  seedForm.value = seed ? { ...seed } : { ...EMPTY_SEED };
+  seedModal.value = true;
+}
+function saveSeed() {
+  if (editingSeed.value) {
+    const index = seeds.value.findIndex(s => s.id === seedForm.value.id);
+    if (index !== -1) seeds.value[index] = { ...seedForm.value };
+  } else {
+    seeds.value.push({ ...seedForm.value, id: Date.now() });
+  }
+  seedModal.value = false;
+}
+function deleteSeed(id) {
+  askConfirmation(t('seeds.confirm_delete'), () => { seeds.value = seeds.value.filter(s => s.id !== id); });
+}
+function isInTray(seedId) { return seedlings.value.some(s => s.seed_id === seedId); }
+
+// --- Import / export ---
+function downloadJson(data, filename) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
+const today = () => new Date().toISOString().split('T')[0];
 
-function onFichierImportSelectionne(event) {
-  const file = event.target.files[0];
+function readJsonFile(event, onLoaded) {
+  const input = event.target;
+  const file = input.files[0];
   if (!file) return;
-  
   const reader = new FileReader();
   reader.onload = (e) => {
-    try {
-      const parsed = JSON.parse(e.target.result);
-      if (Array.isArray(parsed)) {
-        donneesImportEnAttente.value = parsed;
-        afficherModalImport.value = true;
-      } else {
-        demanderConfirmation("Le fichier sélectionné n'est pas un tableau JSON valide.", null);
-      }
-    } catch (err) {
-      demanderConfirmation("Erreur lors de la lecture du fichier JSON. Est-il corrompu ?", null);
-    }
-    if (fileInputImport.value) fileInputImport.value.value = '';
+    try { onLoaded(JSON.parse(e.target.result)); } catch (err) { showInfo(t('common.unreadable_file')); }
+    input.value = '';
   };
   reader.readAsText(file);
 }
 
-function validerImport() {
-  const nouvellesGraines = donneesImportEnAttente.value.map(g => ({
-    ...g,
-    id: Date.now() + Math.random() 
-  }));
-  
-  grainotheque.value = [...(grainotheque.value || []), ...nouvellesGraines];
-  afficherModalImport.value = false;
-  donneesImportEnAttente.value = [];
-}
+function exportSeeds() { downloadJson(JSON.parse(serialize(seeds.value)), `seeds_${today()}.json`); }
 
-// --- NOUVEAU: LOGIQUE IMPORT/EXPORT GLOBAL ---
-const fileInputImportGlobal = ref(null);
-const afficherModalImportGlobal = ref(false);
-const donneesImportGlobalEnAttente = ref(null);
-
-function exporterTout() {
-  const exportData = {
-    grainotheque: grainotheque.value,
-    parcelles: parcelles.value,
-    godets: godets.value,
-    pots: pots.value,
-    version: "1.0",
-    date: new Date().toISOString()
-  };
-  const dataStr = JSON.stringify(exportData, null, 2);
-  const blob = new Blob([dataStr], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const dateStr = new Date().toISOString().split('T')[0];
-  
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `mysecretgarden_backup_${dateStr}.json`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-function onFichierImportGlobalSelectionne(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const parsed = JSON.parse(e.target.result);
-      if (parsed.grainotheque !== undefined || parsed.parcelles !== undefined) {
-        donneesImportGlobalEnAttente.value = parsed;
-        afficherModalImportGlobal.value = true;
-      } else {
-        demanderConfirmation("Le fichier sélectionné n'est pas une sauvegarde valide My Secret Garden.", null);
-      }
-    } catch (err) {
-      demanderConfirmation("Erreur lors de la lecture du fichier de sauvegarde. Est-il corrompu ?", null);
-    }
-    if (fileInputImportGlobal.value) fileInputImportGlobal.value.value = '';
-  };
-  reader.readAsText(file);
-}
-
-function validerImportGlobal() {
-  if (!donneesImportGlobalEnAttente.value) return;
-  
-  if (donneesImportGlobalEnAttente.value.grainotheque) grainotheque.value = donneesImportGlobalEnAttente.value.grainotheque;
-  if (donneesImportGlobalEnAttente.value.parcelles) parcelles.value = donneesImportGlobalEnAttente.value.parcelles;
-  if (donneesImportGlobalEnAttente.value.godets) godets.value = donneesImportGlobalEnAttente.value.godets;
-  if (donneesImportGlobalEnAttente.value.pots) pots.value = donneesImportGlobalEnAttente.value.pots;
-  
-  syncGraines(grainotheque.value);
-  syncParcelles(parcelles.value);
-  syncGodets(godets.value);
-  syncPots(pots.value);
-
-  afficherModalImportGlobal.value = false;
-  donneesImportGlobalEnAttente.value = null;
-  
-  recentrerTerrain(); 
-}
-// ---------------------------------------------
-
-
-const rechercheGraine = ref(''); const filtreTypeGraine = ref(''); const filtreStock = ref('tous'); 
-const grainesFiltrees = computed(() => { 
-  if (!grainotheque.value) return []; 
-  return grainotheque.value.filter(g => { 
-    const matchNom = (g.nom || '').toLowerCase().includes((rechercheGraine.value || '').toLowerCase()); 
-    const matchType = filtreTypeGraine.value === '' || g.type === filtreTypeGraine.value; 
-    const matchStock = filtreStock.value === 'tous' ? true : (filtreStock.value === 'possede' ? g.en_possession : !g.en_possession);
-    return matchNom && matchType && matchStock; 
-  }); 
-});
-
-const afficherModalGodet = ref(false); const modeEditionGodet = ref(false); const nouveauGodet = ref({ id_graine: '', quantite: 1, emplacement: '' });
-function ouvrirModalAjoutGodet(g = null) { if (g) { modeEditionGodet.value = true; nouveauGodet.value = { ...g }; } else { modeEditionGodet.value = false; nouveauGodet.value = { id_graine: '', quantite: 1, emplacement: '' }; } afficherModalGodet.value = true; }
-function validerAjoutGodet() { if (modeEditionGodet.value) { const index = godets.value.findIndex(g => g.id === nouveauGodet.value.id); if (index !== -1) godets.value[index] = { ...nouveauGodet.value }; } else { godets.value.push({ id: Date.now(), ...nouveauGodet.value }); } afficherModalGodet.value = false; }
-
-function supprimerGodet(id) { 
-  demanderConfirmation("Confirmez-vous le repiquage ou la suppression de ce godet ?", () => {
-    godets.value = godets.value.filter(g => g.id !== id);
+const seedImport = ref(null);
+function onSeedFileSelected(event) {
+  readJsonFile(event, (parsed) => {
+    if (Array.isArray(parsed)) seedImport.value = parsed;
+    else showInfo(t('seeds.import_modal.invalid'));
   });
 }
-
-function estEnGodet(idGraine) { return (godets.value || []).some(g => g.id_graine === idGraine); }
-const godetsAffichables = computed(() => { if (!godets.value) return []; return godets.value.map(godet => { const graine = (grainotheque.value || []).find(g => g.id === godet.id_graine) || { nom: 'Graine supprimée', icone: '❓', type: 'Inconnu' }; return { ...godet, nom: graine.nom, icone: graine.icone, type: graine.type }; }).reverse(); });
-const totalGodetsCultives = computed(() => (godets.value || []).reduce((acc, g) => acc + g.quantite, 0));
-
-// --- VUE POTS ---
-const recherchePot = ref('');
-const afficherModalPot = ref(false); 
-const modeEditionPot = ref(false); 
-const potParDefaut = { id: null, nom: '', icone: '🪴', environnement: 'Interieur', emplacement: '', arrosage: 7, dernier_arrosage: Date.now() };
-const nouveauPot = ref({ ...potParDefaut });
-
-const potsInterieurFiltres = computed(() => (pots.value || []).filter(p => p.environnement === 'Interieur' && p.nom.toLowerCase().includes(recherchePot.value.toLowerCase())));
-const potsExterieurFiltres = computed(() => (pots.value || []).filter(p => p.environnement === 'Exterieur' && p.nom.toLowerCase().includes(recherchePot.value.toLowerCase())));
-
-function ouvrirModalPot(p = null) { 
-  if (p) { modeEditionPot.value = true; nouveauPot.value = { ...p }; } 
-  else { modeEditionPot.value = false; nouveauPot.value = { ...potParDefaut, id: Date.now() }; } 
-  afficherModalPot.value = true; 
+async function confirmSeedImport() {
+  const items = seedImport.value;
+  seedImport.value = null;
+  const res = await api('/api/import/seeds', { method: 'POST', json: JSON.stringify(items) });
+  if (res.ok) await loadCollection('seeds');
+  else showInfo(t('common.import_failed'));
 }
-function validerAjoutPot() { 
-  if (modeEditionPot.value) { 
-    const index = pots.value.findIndex(p => p.id === nouveauPot.value.id); 
-    if (index !== -1) pots.value[index] = { ...nouveauPot.value }; 
-  } else { 
-    pots.value.push({ ...nouveauPot.value, dernier_arrosage: Date.now() }); 
-  } 
-  afficherModalPot.value = false; 
+
+function exportAll() {
+  const backup = { version: 2, exported_at: new Date().toISOString(), seeds: seeds.value, plots: plots.value, seedlings: seedlings.value, pots: pots.value };
+  downloadJson(JSON.parse(serialize(backup)), `mysecretgarden_backup_${today()}.json`);
 }
-function supprimerPot(id) { 
-  demanderConfirmation("Voulez-vous vraiment supprimer cette plante en pot ?", () => {
-    pots.value = pots.value.filter(p => p.id !== id);
+
+const backupImport = ref(null);
+function onBackupFileSelected(event) {
+  readJsonFile(event, (parsed) => {
+    const isBackup = parsed && typeof parsed === 'object' && ['seeds', 'plots', 'grainotheque', 'parcelles'].some(k => k in parsed);
+    if (isBackup) backupImport.value = parsed;
+    else showInfo(t('settings.restore.invalid'));
   });
 }
-function potBesoinEau(pot) {
-  if (!pot.arrosage) return false;
-  return ((Date.now() - (pot.dernier_arrosage || 0)) / (1000 * 3600 * 24)) >= pot.arrosage;
+function backupCount(key, legacyKey) { return (backupImport.value?.[key] ?? backupImport.value?.[legacyKey] ?? []).length; }
+async function confirmBackupImport() {
+  const payload = backupImport.value;
+  backupImport.value = null;
+  const res = await api('/api/import', { method: 'POST', json: JSON.stringify(payload) });
+  if (!res.ok) { showInfo(t('common.import_failed')); return; }
+  await Promise.all(['seeds', 'plots', 'seedlings', 'pots'].map(loadCollection));
+  recenter();
 }
-function arroserPot(pot) { 
-  pot.arrosageEnCours = true; 
-  pot.dernier_arrosage = Date.now(); 
-  setTimeout(() => { pot.arrosageEnCours = false; syncPotsForcer(); }, 2000); 
+
+// --- Seedlings ---
+const seedlingCards = computed(() => seedlings.value.map(s => {
+  const seed = seeds.value.find(x => x.id === s.seed_id);
+  return { ...s, name: seed?.name ?? t('seedlings.deleted_seed'), icon: seed?.icon ?? '❓', category: seed?.category };
+}).reverse());
+const totalSeedlings = computed(() => seedlings.value.reduce((sum, s) => sum + (Number(s.quantity) || 0), 0));
+
+const seedlingModal = ref(false);
+const seedlingForm = ref({});
+function openSeedlingModal(seedling = null) {
+  seedlingForm.value = seedling
+    ? { id: seedling.id, seed_id: seedling.seed_id, quantity: seedling.quantity, location: seedling.location }
+    : { id: null, seed_id: '', quantity: 1, location: '' };
+  seedlingModal.value = true;
 }
-// ----------------
-
-function debounce(fn, delay) { let timeoutId; return (...args) => { clearTimeout(timeoutId); timeoutId = setTimeout(() => fn(...args), delay); }; }
-const syncGraines = debounce(async (data) => { localStorage.setItem('mySecretGarden_graines', JSON.stringify(data)); try { await fetch(`${backendUrl}/api/graines`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); } catch(e){} }, 1000);
-const syncParcelles = debounce(async (data) => { localStorage.setItem('mySecretGarden_parcelles', JSON.stringify(data)); try { await fetch(`${backendUrl}/api/parcelles`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); } catch(e){} }, 1000);
-const syncGodets = debounce(async (data) => { localStorage.setItem('mySecretGarden_godets', JSON.stringify(data)); try { await fetch(`${backendUrl}/api/godets`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); } catch(e){} }, 1000);
-const syncPots = debounce(async (data) => { localStorage.setItem('mySecretGarden_pots', JSON.stringify(data)); try { await fetch(`${backendUrl}/api/pots`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); } catch(e){} }, 1000);
-
-function syncParcellesForcer() { syncParcelles(parcelles.value); }
-function syncPotsForcer() { syncPots(pots.value); }
-
-watch(grainotheque, (newVal) => { syncGraines(newVal); }, { deep: true });
-watch(parcelles, (newVal) => { syncParcelles(newVal); }, { deep: true });
-watch(godets, (newVal) => { syncGodets(newVal); }, { deep: true });
-watch(pots, (newVal) => { syncPots(newVal); }, { deep: true });
-
-const reglages = ref({ webhookUrl: '', webhookArrosage: true, webhookPluie: true, webhookHeure: '10:00', ville: '' });
-const syncReglagesServeur = debounce(async (data) => { try { await fetch(`${backendUrl}/api/reglages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); } catch(e){} }, 1000);
-watch(reglages, (newVal) => { syncReglagesServeur(newVal); }, { deep: true });
-
-onMounted(async () => {
-  try { const resGraines = await fetch(`${backendUrl}/api/graines`); if (resGraines.ok) grainotheque.value = await resGraines.json(); } catch(e) { const saved = localStorage.getItem('mySecretGarden_graines'); if(saved) grainotheque.value = JSON.parse(saved) || []; }
-  try { 
-    const resParcelles = await fetch(`${backendUrl}/api/parcelles`); 
-    if (resParcelles.ok) {
-      let dataParcelles = await resParcelles.json();
-      dataParcelles.forEach(p => { 
-        if (!p.type) p.type = 'bac';
-        if (p.type === 'bac') {
-            if (!p.plantations_ete) p.plantations_ete = p.plantations || []; 
-            if (!p.plantations_hiver) p.plantations_hiver = []; 
-            if (!p.archives) p.archives = [];
-            if (!p.dernier_arrosage) p.dernier_arrosage = Date.now(); 
-        }
-        if (!p.nom) p.nom = ''; 
-        p.arrosageEnCours = false; 
-        delete p.plantations; 
-      });
-      parcelles.value = dataParcelles;
-    }
-  } catch(e) { const saved = localStorage.getItem('mySecretGarden_parcelles'); if(saved) parcelles.value = JSON.parse(saved) || []; }
-  
-  try { const resGodets = await fetch(`${backendUrl}/api/godets`); if (resGodets.ok) godets.value = await resGodets.json(); } catch(e) { const saved = localStorage.getItem('mySecretGarden_godets'); if(saved) godets.value = JSON.parse(saved) || []; }
-  try { const resPots = await fetch(`${backendUrl}/api/pots`); if (resPots.ok) pots.value = await resPots.json(); } catch(e) { const saved = localStorage.getItem('mySecretGarden_pots'); if(saved) pots.value = JSON.parse(saved) || []; }
-  try { const resReg = await fetch(`${backendUrl}/api/reglages`); if (resReg.ok) { const dataReg = await resReg.json(); reglages.value = { ...reglages.value, ...dataReg }; } } catch(e) { const saved = localStorage.getItem('mySecretGarden_reglages'); if(saved) reglages.value = { ...reglages.value, ...JSON.parse(saved) }; }
-  
-  if (reglages.value.ville) chargerMeteo();
-});
-
-const meteoInfo = ref(null); const meteoErreur = ref(false);
-
-const datePremierGel = computed(() => {
-  if (!meteoInfo.value || !meteoInfo.value.daily || !meteoInfo.value.daily.temperature_2m_min) return null;
-  const mins = meteoInfo.value.daily.temperature_2m_min;
-  const times = meteoInfo.value.daily.time;
-  for (let i = 0; i < mins.length; i++) {
-    if (mins[i] <= 0) {
-      const dateObj = new Date(times[i]);
-      const d = String(dateObj.getDate()).padStart(2, '0');
-      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
-      return `${d}/${m}`;
-    }
+function saveSeedling() {
+  if (seedlingForm.value.id) {
+    const index = seedlings.value.findIndex(s => s.id === seedlingForm.value.id);
+    if (index !== -1) seedlings.value[index] = { ...seedlingForm.value };
+  } else {
+    seedlings.value.push({ ...seedlingForm.value, id: Date.now() });
   }
-  return null;
-});
-
-async function chargerMeteo() {
-  if (!reglages.value.ville) { meteoErreur.value = false; meteoInfo.value = null; return; }
-  try {
-    const searchString = encodeURIComponent(reglages.value.ville.trim());
-    const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${searchString}&count=1&language=fr`); 
-    const geoData = await geoRes.json();
-    if (!geoData.results || geoData.results.length === 0) { meteoErreur.value = true; meteoInfo.value = null; return; }
-    const { latitude, longitude, name } = geoData.results[0];
-    
-    const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum&current_weather=true&timezone=auto&forecast_days=10`);
-    const wData = await wRes.json();
-    meteoInfo.value = wData; meteoInfo.value.cityName = name; meteoErreur.value = false;
-  } catch (e) { meteoErreur.value = true; meteoInfo.value = null; }
+  seedlingModal.value = false;
+}
+function deleteSeedling(id) {
+  askConfirmation(t('seedlings.confirm_delete'), () => { seedlings.value = seedlings.value.filter(s => s.id !== id); });
 }
 
-function getWeatherEmoji(code) { if(code === 0) return '☀️'; if(code > 0 && code < 4) return '⛅'; if(code > 44 && code < 49) return '🌫️'; if(code > 50 && code < 68) return '🌧️'; if(code > 70 && code < 80) return '❄️'; if(code > 94) return '⛈️'; return '🌤️'; }
-function formatJour(dateStr) { return new Date(dateStr).toLocaleDateString('fr-FR', { weekday: 'short' }); }
+// --- Pots ---
+const potSearch = ref('');
+const potGroups = computed(() => ['indoor', 'outdoor'].map(environment => ({
+  environment,
+  pots: pots.value.filter(p => p.environment === environment && (p.name || '').toLowerCase().includes(potSearch.value.toLowerCase())),
+})));
 
-function bacBesoinEau(bac) {
-  if (!bac || bac.type !== 'bac') return false;
-  const saison = saisonActive.value === 'ete' ? 'plantations_ete' : 'plantations_hiver';
-  if (!bac[saison] || bac[saison].length === 0) return false;
-  let minFreq = 999;
-  bac[saison].forEach(plant => { const g = (grainotheque.value || []).find(x => x.id === plant.id_graine); if (g && g.arrosage < minFreq) minFreq = g.arrosage; });
-  if (minFreq === 999) minFreq = 7; 
-  return ((Date.now() - (bac.dernier_arrosage || 0)) / (1000 * 3600 * 24)) >= minFreq;
+const EMPTY_POT = { id: null, name: '', icon: '🪴', environment: 'indoor', location: '', watering_interval: DEFAULT_WATERING_INTERVAL, last_watered: 0 };
+const potModal = ref(false);
+const editingPot = ref(false);
+const potForm = ref({ ...EMPTY_POT });
+function openPotModal(pot = null) {
+  editingPot.value = Boolean(pot);
+  potForm.value = pot ? { ...pot } : { ...EMPTY_POT, id: Date.now(), last_watered: Date.now() };
+  potModal.value = true;
 }
-
-function arroserBac(bac) { bac.arrosageEnCours = true; bac.dernier_arrosage = Date.now(); setTimeout(() => { bac.arrosageEnCours = false; syncParcellesForcer(); }, 2000); }
-const pluieGlobaleActive = ref(false);
-function arroserTout() {
-  pluieGlobaleActive.value = true;
-  (parcelles.value || []).forEach(p => { 
-    if (p.type === 'bac' && bacBesoinEau(p)) { p.arrosageEnCours = true; p.dernier_arrosage = Date.now(); }
-  });
-  (pots.value || []).forEach(p => { 
-    if (potBesoinEau(p)) { p.arrosageEnCours = true; p.dernier_arrosage = Date.now(); }
-  });
-  setTimeout(() => { 
-    pluieGlobaleActive.value = false; 
-    (parcelles.value || []).forEach(p => p.arrosageEnCours = false); 
-    (pots.value || []).forEach(p => p.arrosageEnCours = false); 
-    syncParcellesForcer(); 
-    syncPotsForcer();
-  }, 2500);
-}
-function declencherArrosageGlobal() { arroserTout(); }
-
-const alertesArrosage = computed(() => {
-  if (!parcelles.value) return [];
-  return parcelles.value.filter(p => bacBesoinEau(p)).map(p => { 
-    const saison = saisonActive.value === 'ete' ? 'plantations_ete' : 'plantations_hiver';
-    const plantesDuBac = p[saison] ? [...new Set(p[saison].map(pl => pl.nom))] : [];
-    return { id: p.id, bac: p, nom: p.nom, plantes: plantesDuBac, joursDepuis: Math.floor((Date.now() - (p.dernier_arrosage || 0)) / (1000 * 3600 * 24)) }; 
-  }); 
-});
-
-const alertesArrosagePots = computed(() => {
-  if (!pots.value) return [];
-  return pots.value.filter(p => potBesoinEau(p)).map(p => {
-    return { id: p.id, pot: p, nom: p.nom, icone: p.icone, emplacement: p.environnement + (p.emplacement ? ` - ${p.emplacement}` : ''), joursDepuis: Math.floor((Date.now() - (p.dernier_arrosage || 0)) / (1000 * 3600 * 24)) };
-  });
-});
-
-const alertesSaisonsFiltrees = computed(() => {
-  if (!grainotheque.value) return [];
-  const currentMonthIdx = new Date().getMonth();
-  const getMoisDistance = (moisNom) => { 
-    if(!moisNom) return 99; 
-    const idx = mois.indexOf(moisNom); 
-    if(idx === -1) return 99; 
-    return (idx - currentMonthIdx + 12) % 12; 
-  };
-  let alertes = [];
-  grainotheque.value.forEach(g => {
-    if(g.godet_debut) { const dist = getMoisDistance(g.godet_debut); if(dist >= 0 && dist <= 1) alertes.push({ type: 'godet', plante: g.nom, icone: g.icone, dist: dist, mois: g.godet_debut }); }
-    if(g.plantation_debut) { const dist = getMoisDistance(g.plantation_debut); if(dist >= 0 && dist <= 1) alertes.push({ type: 'semis', plante: g.nom, icone: g.icone, dist: dist, mois: g.plantation_debut }); }
-  });
-  return alertes.sort((a,b) => a.dist - b.dist);
-});
-const totalAlertesArrosage = computed(() => (alertesArrosage.value ? alertesArrosage.value.length : 0) + (alertesArrosagePots.value ? alertesArrosagePots.value.length : 0));
-const totalAlertes = computed(() => { return totalAlertesArrosage.value + (alertesSaisonsFiltrees.value ? alertesSaisonsFiltrees.value.length : 0); });
-
-async function testerWebhookDiscord() {
-  if (!reglages.value.webhookUrl) return;
-  try {
-    await fetch(`${backendUrl}/api/reglages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(reglages.value) });
-    const res = await fetch(`${backendUrl}/api/test-webhook`, { method: 'POST' });
-    if(res.ok) alert('Webhook de test envoyé avec succès ! Vérifiez votre serveur Discord.');
-    else alert("Erreur du serveur lors du test.");
-  } catch (e) {
-    alert('Erreur lors de l\'envoi du webhook de test. Vérifiez votre URL ou votre bloqueur de publicité.');
+function savePot() {
+  if (editingPot.value) {
+    const index = pots.value.findIndex(p => p.id === potForm.value.id);
+    if (index !== -1) pots.value[index] = { ...potForm.value };
+  } else {
+    pots.value.push({ ...potForm.value });
   }
+  potModal.value = false;
+}
+function deletePot(id) {
+  askConfirmation(t('pots.confirm_delete'), () => { pots.value = pots.value.filter(p => p.id !== id); });
 }
 
-const zoom = ref(1); function zoomer(delta) { zoom.value = Math.min(Math.max(0.2, zoom.value + delta), 3); } function gererZoom(e) { if (e.deltaY < 0) zoomer(0.05); else zoomer(-0.05); }
+// --- Companion planting ---
+const companionSearch = ref('');
+const filteredCompanions = computed(() => {
+  const query = companionSearch.value.trim().toLowerCase();
+  const sorted = [...COMPANIONS].sort((a, b) => plantName(a.plant, locale.value).localeCompare(plantName(b.plant, locale.value), locale.value));
+  if (!query) return sorted;
+  return sorted.filter(c => plantName(c.plant, locale.value).toLowerCase().includes(query) || findPlant(query) === c.plant);
+});
 
-const outilActif = ref('main'); 
-const terrainRef = ref(null); 
-const pan = ref({ x: 0, y: 0 }); 
-const isPanning = ref(false); 
-const lastMousePos = ref({ x: 0, y: 0 }); 
-const enTrainDeDessiner = ref(false); 
-const pointDepart = ref({ x: 0, y: 0 }); 
-const parcelleEnCours = ref(null); 
-const draggedParcelle = ref(null); 
-const resizingParcelle = ref(null); 
-const dragOffset = ref({ x: 0, y: 0 }); 
-const pixelsParMetre = 40; 
-const pixelsPar10cm = 4;
+function plantNamesIn(bed) { return [...new Set((bed?.plantings || []).map(p => p.name))]; }
 
-const initialPinchDistance = ref(null);
-const initialPinchZoom = ref(1);
+function hasConflict(bed) {
+  if (!bed || bed.type !== 'bed') return false;
+  const names = plantNamesIn(bed);
+  return names.some((a, i) => names.slice(i + 1).some(b => companionship(a, b).bad));
+}
 
-function styleTerrainElement(p) { 
-  if (p.type === 'bordure') {
+// --- Garden plan: canvas ---
+const zoom = ref(1);
+function zoomBy(delta) { zoom.value = Math.min(Math.max(0.2, zoom.value + delta), 3); }
+function onWheel(e) { zoomBy(e.deltaY < 0 ? 0.05 : -0.05); }
+
+const activeTool = ref('hand');
+const canvasRef = ref(null);
+const pan = ref({ x: 0, y: 0 });
+const isPanning = ref(false);
+const lastPointer = ref({ x: 0, y: 0 });
+const isDrawing = ref(false);
+const startPoint = ref({ x: 0, y: 0 });
+const drawingPlot = ref(null);
+const draggedPlot = ref(null);
+const resizedPlot = ref(null);
+const resizedBorder = ref(null);
+const dragOffset = ref({ x: 0, y: 0 });
+const pinchStart = ref(null);
+const PIXELS_PER_METER = 40;
+const SNAP = 4; // 10 cm
+
+const snap = (value) => Math.round(value / SNAP) * SNAP;
+const toCm = (pixels) => Math.round((pixels / PIXELS_PER_METER) * 100);
+
+function plotStyle(p) {
+  if (p.type === 'border') {
     const length = Math.hypot(p.x2 - p.x1, p.y2 - p.y1);
     const angle = Math.atan2(p.y2 - p.y1, p.x2 - p.x1) * (180 / Math.PI);
     return { left: p.x1 + 'px', top: p.y1 + 'px', width: length + 'px', transform: `rotate(${angle}deg)` };
-  } else if (p.type === 'arbre' || p.type === 'deco') {
-    return { left: p.x + 'px', top: p.y + 'px' };
-  } else {
-    return { left: p.x + 'px', top: p.y + 'px', width: p.width + 'px', height: p.height + 'px' }; 
   }
+  if (p.type === 'tree' || p.type === 'decor') return { left: p.x + 'px', top: p.y + 'px' };
+  return { left: p.x + 'px', top: p.y + 'px', width: p.width + 'px', height: p.height + 'px' };
+}
+function actionsStyle(p) {
+  if (p.type !== 'border') return {};
+  const angle = Math.atan2(p.y2 - p.y1, p.x2 - p.x1) * (180 / Math.PI);
+  return { transform: `translateX(-50%) rotate(${-angle}deg)` };
 }
 
-function styleTooltip(p) {
-  if (p.type === 'bordure') {
-    const angle = Math.atan2(p.y2 - p.y1, p.x2 - p.x1) * (180 / Math.PI);
-    return { transform: `translateX(-50%) rotate(${-angle}deg)` };
-  }
-  return {};
+function recenter() { pan.value = { x: 0, y: 0 }; zoom.value = 1; }
+function goToBed(bed) {
+  pan.value = { x: -bed.x + window.innerWidth / 2 - 140, y: -bed.y + window.innerHeight / 2 };
+  zoom.value = 1.2;
+  showView('garden');
 }
 
-function recentrerTerrain() { pan.value = { x: 0, y: 0 }; zoom.value = 1; } 
-function allerAuBac(bac) { if(!bac) return; pan.value = { x: -bac.x + (window.innerWidth/2) - 140, y: -bac.y + (window.innerHeight/2) }; zoom.value = 1.2; vueActive.value = 'potager'; menuMobileOuvert.value = false; }
-
-function supprimerParcelle(id) { 
-  demanderConfirmation("Voulez-vous vraiment supprimer cet élément du terrain ?", () => {
-    parcelles.value = parcelles.value.filter(p => p.id !== id); 
-    if(parcelleHistoriqueSelectionnee.value?.id === id) fermerHistorique(); 
-    syncParcellesForcer();
+function deletePlot(id) {
+  askConfirmation(t('garden.confirm_delete'), () => {
+    plots.value = plots.value.filter(p => p.id !== id);
+    if (historyPlot.value?.id === id) closeHistory();
   });
 }
 
-const afficherModalArbre = ref(false);
-const afficherModalDeco = ref(false);
-const nouvelleCibleCoords = ref({x: 0, y: 0});
-const nouvelArbre = ref({ nom: '', taille: 'Moyen' });
-const nouvelleDeco = ref({ icone: '' });
-
-function getEvtCoords(e) { 
-  if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY }; 
-  return { x: e.clientX, y: e.clientY }; 
+function pointerPosition(e) {
+  const point = e.touches?.length ? e.touches[0] : e;
+  return { x: point.clientX, y: point.clientY };
+}
+function canvasPosition(e) {
+  const pointer = pointerPosition(e);
+  const rect = canvasRef.value.getBoundingClientRect();
+  return { x: (pointer.x - rect.left) / zoom.value, y: (pointer.y - rect.top) / zoom.value };
 }
 
-function commencerAction(e) { 
-  if (e.touches && e.touches.length === 2) {
-    const t1 = e.touches[0];
-    const t2 = e.touches[1];
-    initialPinchDistance.value = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-    initialPinchZoom.value = zoom.value;
-    isPanning.value = false; enTrainDeDessiner.value = false; parcelleEnCours.value = null; draggedParcelle.value = null; resizingParcelle.value = null;
+const treeModal = ref(false);
+const decorModal = ref(false);
+const newPlotPosition = ref({ x: 0, y: 0 });
+const newTree = ref({ size: 'medium' });
+const newDecor = ref({ icon: '' });
+
+function startAction(e) {
+  if (e.touches?.length === 2) {
+    const [a, b] = e.touches;
+    pinchStart.value = { distance: Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY), zoom: zoom.value };
+    isPanning.value = false; isDrawing.value = false; drawingPlot.value = null; draggedPlot.value = null; resizedPlot.value = null;
     return;
   }
-
-  const coords = getEvtCoords(e); 
-  const rect = terrainRef.value.getBoundingClientRect(); 
-  const rawX = (coords.x - rect.left) / zoom.value;
-  const rawY = (coords.y - rect.top) / zoom.value;
-  const snappedX = Math.round(rawX / pixelsPar10cm) * pixelsPar10cm;
-  const snappedY = Math.round(rawY / pixelsPar10cm) * pixelsPar10cm;
-
-  if (outilActif.value === 'main') { 
-    isPanning.value = true; 
-    lastMousePos.value = { x: coords.x, y: coords.y };
-  } else if (outilActif.value === 'arbre') {
-    nouvelleCibleCoords.value = { x: snappedX, y: snappedY };
-    nouvelArbre.value = { nom: '', taille: 'Moyen' };
-    afficherModalArbre.value = true;
-    outilActif.value = 'main';
-  } else if (outilActif.value === 'deco') {
-    nouvelleCibleCoords.value = { x: snappedX, y: snappedY };
-    nouvelleDeco.value = { icone: '' };
-    afficherModalDeco.value = true;
-    outilActif.value = 'main';
-  } else if (outilActif.value === 'bordure') {
-    enTrainDeDessiner.value = true; 
-    pointDepart.value = { x: rawX, y: rawY }; 
-    parcelleEnCours.value = { type: 'bordure', x1: rawX, y1: rawY, x2: rawX, y2: rawY }; 
-  } else if (outilActif.value === 'bac') {
-    enTrainDeDessiner.value = true; 
-    pointDepart.value = { x: rawX, y: rawY }; 
-    parcelleEnCours.value = { type: 'bac', nom: '', x: rawX, y: rawY, width: 0, height: 0, dimX: 0, dimY: 0, plantations_ete: [], plantations_hiver: [], dernier_arrosage: Date.now() }; 
-  } 
-}
-
-function validerAjoutArbre() { parcelles.value.push({ id: Date.now(), type: 'arbre', taille: nouvelArbre.value.taille, nom: nouvelArbre.value.nom, x: nouvelleCibleCoords.value.x, y: nouvelleCibleCoords.value.y, plantations_ete: [], plantations_hiver: [], dernier_arrosage: Date.now() }); afficherModalArbre.value = false; }
-function validerAjoutDeco() { parcelles.value.push({ id: Date.now(), type: 'deco', icone: nouvelleDeco.value.icone, x: nouvelleCibleCoords.value.x, y: nouvelleCibleCoords.value.y }); afficherModalDeco.value = false; }
-
-function commencerDragParcelle(e, p) { 
-  if (outilActif.value !== 'main') return; 
-  draggedParcelle.value = p; 
-  const coords = getEvtCoords(e); 
-  const rect = terrainRef.value.getBoundingClientRect(); 
-  const rawX = (coords.x - rect.left) / zoom.value;
-  const rawY = (coords.y - rect.top) / zoom.value;
-  if (p.type === 'bordure') { dragOffset.value = { x: rawX - p.x1, y: rawY - p.y1 }; } 
-  else { dragOffset.value = { x: rawX - p.x, y: rawY - p.y }; }
-}
-
-const resizeBordureTarget = ref(null);
-function commencerResize(e, p) { 
-  if (p.type === 'bordure') {
-    resizeBordureTarget.value = { p, handle: 'end' }; 
-  } else {
-    resizingParcelle.value = p; 
-    const coords = getEvtCoords(e); 
-    const rect = terrainRef.value.getBoundingClientRect(); 
-    pointDepart.value = { x: (coords.x - rect.left) / zoom.value, y: (coords.y - rect.top) / zoom.value, w: p.width, h: p.height }; 
+  const pos = canvasPosition(e);
+  if (activeTool.value === 'hand') {
+    isPanning.value = true;
+    lastPointer.value = pointerPosition(e);
+  } else if (activeTool.value === 'tree' || activeTool.value === 'decor') {
+    newPlotPosition.value = { x: snap(pos.x), y: snap(pos.y) };
+    if (activeTool.value === 'tree') { newTree.value = { size: 'medium' }; treeModal.value = true; }
+    else { newDecor.value = { icon: '' }; decorModal.value = true; }
+    activeTool.value = 'hand';
+  } else if (activeTool.value === 'border') {
+    isDrawing.value = true;
+    drawingPlot.value = { type: 'border', x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y };
+  } else if (activeTool.value === 'bed') {
+    isDrawing.value = true;
+    startPoint.value = pos;
+    drawingPlot.value = { type: 'bed', name: '', x: pos.x, y: pos.y, width: 0, height: 0, size_x_cm: 0, size_y_cm: 0, plantings: [], archive: [], last_watered: Date.now() };
   }
 }
 
-function actionEnCours(e) { 
-  if (e.touches && e.touches.length === 2) {
-    if (initialPinchDistance.value) {
-      const t1 = e.touches[0]; const t2 = e.touches[1];
-      const currentDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-      const ratio = currentDist / initialPinchDistance.value;
-      zoom.value = Math.min(Math.max(0.2, initialPinchZoom.value * ratio), 3);
+function addTree() {
+  plots.value.push({ id: Date.now(), type: 'tree', name: '', size: newTree.value.size, ...newPlotPosition.value });
+  treeModal.value = false;
+}
+function addDecor() {
+  plots.value.push({ id: Date.now(), type: 'decor', name: '', icon: newDecor.value.icon, ...newPlotPosition.value });
+  decorModal.value = false;
+}
+
+function startDrag(e, p) {
+  if (activeTool.value !== 'hand') return;
+  draggedPlot.value = p;
+  const pos = canvasPosition(e);
+  dragOffset.value = p.type === 'border' ? { x: pos.x - p.x1, y: pos.y - p.y1 } : { x: pos.x - p.x, y: pos.y - p.y };
+}
+
+function startResize(e, p) {
+  if (p.type === 'border') { resizedBorder.value = p; return; }
+  resizedPlot.value = p;
+  const pos = canvasPosition(e);
+  startPoint.value = { ...pos, width: p.width, height: p.height };
+}
+
+function setBedSize(bed, width, height) {
+  bed.width = Math.max(40, snap(width));
+  bed.height = Math.max(40, snap(height));
+  bed.size_x_cm = toCm(bed.width);
+  bed.size_y_cm = toCm(bed.height);
+}
+
+function moveAction(e) {
+  if (e.touches?.length === 2) {
+    if (pinchStart.value) {
+      const [a, b] = e.touches;
+      const ratio = Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY) / pinchStart.value.distance;
+      zoom.value = Math.min(Math.max(0.2, pinchStart.value.zoom * ratio), 3);
     }
     return;
   }
-  
-  if (initialPinchDistance.value && e.touches && e.touches.length === 1) {
-    lastMousePos.value = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    initialPinchDistance.value = null;
-    if (outilActif.value === 'main') isPanning.value = true;
+  if (pinchStart.value && e.touches?.length === 1) {
+    lastPointer.value = pointerPosition(e);
+    pinchStart.value = null;
+    if (activeTool.value === 'hand') isPanning.value = true;
     return;
   }
 
-  const coords = getEvtCoords(e); 
-  const rect = terrainRef.value.getBoundingClientRect(); 
-  let mouseX = (coords.x - rect.left) / zoom.value; 
-  let mouseY = (coords.y - rect.top) / zoom.value; 
-
-  if (isPanning.value) { 
-    pan.value.x += coords.x - lastMousePos.value.x; 
-    pan.value.y += coords.y - lastMousePos.value.y; 
-    lastMousePos.value = { x: coords.x, y: coords.y };
-  } else if (resizingParcelle.value && resizingParcelle.value.type === 'bac') { 
-    let rawWidth = pointDepart.value.w + (mouseX - pointDepart.value.x); 
-    let rawHeight = pointDepart.value.h + (mouseY - pointDepart.value.y); 
-    let snappedWidth = Math.max(40, Math.round(rawWidth / pixelsPar10cm) * pixelsPar10cm); 
-    let snappedHeight = Math.max(40, Math.round(rawHeight / pixelsPar10cm) * pixelsPar10cm); 
-    resizingParcelle.value.width = snappedWidth; 
-    resizingParcelle.value.height = snappedHeight; 
-    resizingParcelle.value.dimX = Math.round((snappedWidth / pixelsParMetre) * 100); 
-    resizingParcelle.value.dimY = Math.round((snappedHeight / pixelsParMetre) * 100); 
-  } else if (resizeBordureTarget.value) {
-    resizeBordureTarget.value.p.x2 = Math.round(mouseX / pixelsPar10cm) * pixelsPar10cm;
-    resizeBordureTarget.value.p.y2 = Math.round(mouseY / pixelsPar10cm) * pixelsPar10cm;
-  } else if (draggedParcelle.value) { 
-    let rawX = mouseX - dragOffset.value.x; 
-    let rawY = mouseY - dragOffset.value.y; 
-    let snappedX = Math.round(rawX / pixelsPar10cm) * pixelsPar10cm; 
-    let snappedY = Math.round(rawY / pixelsPar10cm) * pixelsPar10cm;
-    
-    if (draggedParcelle.value.type === 'bordure') {
-      const dx = snappedX - draggedParcelle.value.x1;
-      const dy = snappedY - draggedParcelle.value.y1;
-      draggedParcelle.value.x1 += dx;
-      draggedParcelle.value.y1 += dy;
-      draggedParcelle.value.x2 += dx;
-      draggedParcelle.value.y2 += dy;
+  const pos = canvasPosition(e);
+  if (isPanning.value) {
+    const pointer = pointerPosition(e);
+    pan.value.x += pointer.x - lastPointer.value.x;
+    pan.value.y += pointer.y - lastPointer.value.y;
+    lastPointer.value = pointer;
+  } else if (resizedPlot.value) {
+    setBedSize(resizedPlot.value, startPoint.value.width + pos.x - startPoint.value.x, startPoint.value.height + pos.y - startPoint.value.y);
+  } else if (resizedBorder.value) {
+    resizedBorder.value.x2 = snap(pos.x);
+    resizedBorder.value.y2 = snap(pos.y);
+  } else if (draggedPlot.value) {
+    const x = snap(pos.x - dragOffset.value.x);
+    const y = snap(pos.y - dragOffset.value.y);
+    const p = draggedPlot.value;
+    if (p.type === 'border') {
+      const dx = x - p.x1;
+      const dy = y - p.y1;
+      p.x1 += dx; p.y1 += dy; p.x2 += dx; p.y2 += dy;
     } else {
-      draggedParcelle.value.x = snappedX; 
-      draggedParcelle.value.y = snappedY;
+      p.x = x;
+      p.y = y;
     }
-  } else if (enTrainDeDessiner.value) { 
-    if (parcelleEnCours.value.type === 'bordure') {
-      parcelleEnCours.value.x2 = mouseX;
-      parcelleEnCours.value.y2 = mouseY;
+  } else if (isDrawing.value) {
+    const p = drawingPlot.value;
+    if (p.type === 'border') {
+      p.x2 = pos.x;
+      p.y2 = pos.y;
     } else {
-      let rawWidth = mouseX - pointDepart.value.x; 
-      let rawHeight = mouseY - pointDepart.value.y; 
-      let originX = pointDepart.value.x; 
-      let originY = pointDepart.value.y; 
-      if (rawWidth < 0) { originX = mouseX; rawWidth = Math.abs(rawWidth); } 
-      if (rawHeight < 0) { originY = mouseY; rawHeight = Math.abs(rawHeight); } 
-      const snappedWidth = Math.max(40, Math.round(rawWidth / pixelsPar10cm) * pixelsPar10cm); 
-      const snappedHeight = Math.max(40, Math.round(rawHeight / pixelsPar10cm) * pixelsPar10cm); 
-      parcelleEnCours.value.x = originX;
-      parcelleEnCours.value.y = originY;
-      parcelleEnCours.value.width = snappedWidth;
-      parcelleEnCours.value.height = snappedHeight;
-      parcelleEnCours.value.dimX = Math.round((snappedWidth / pixelsParMetre) * 100); 
-      parcelleEnCours.value.dimY = Math.round((snappedHeight / pixelsParMetre) * 100);
+      p.x = Math.min(pos.x, startPoint.value.x);
+      p.y = Math.min(pos.y, startPoint.value.y);
+      setBedSize(p, Math.abs(pos.x - startPoint.value.x), Math.abs(pos.y - startPoint.value.y));
     }
-  } 
+  }
 }
 
-function terminerAction() { 
-  isPanning.value = false; draggedParcelle.value = null; resizingParcelle.value = null; resizeBordureTarget.value = null; initialPinchDistance.value = null;
-  if (enTrainDeDessiner.value) { 
-    enTrainDeDessiner.value = false; 
-    if (parcelleEnCours.value.type === 'bordure') {
-      const dist = Math.hypot(parcelleEnCours.value.x2 - parcelleEnCours.value.x1, parcelleEnCours.value.y2 - parcelleEnCours.value.y1);
-      if (dist > 10) parcelles.value.push({ ...parcelleEnCours.value, id: Date.now() });
-    } else if (parcelleEnCours.value.type === 'bac' && parcelleEnCours.value.dimX >= 20 && parcelleEnCours.value.dimY >= 20) { 
-      parcelles.value.push({ ...parcelleEnCours.value, id: Date.now() });
-    }
-    parcelleEnCours.value = null; 
-    outilActif.value = 'main'; 
-  } 
+function endAction() {
+  isPanning.value = false; draggedPlot.value = null; resizedPlot.value = null; resizedBorder.value = null; pinchStart.value = null;
+  if (!isDrawing.value) return;
+  isDrawing.value = false;
+  const p = drawingPlot.value;
+  const longEnough = p.type === 'border' ? Math.hypot(p.x2 - p.x1, p.y2 - p.y1) > 10 : p.size_x_cm >= 20 && p.size_y_cm >= 20;
+  if (longEnough) plots.value.push({ ...p, id: Date.now() });
+  drawingPlot.value = null;
+  activeTool.value = 'hand';
 }
 
-const afficherModal = ref(false); const modeEdition = ref(false); const graineParDefaut = { id: null, nom: '', type: 'Légume-fruit', icone: '🌱', sol: '', arrosage: 7, godet_debut: '', godet_fin: '', plantation_debut: '', plantation_fin: '', recolte_debut: '', recolte_fin: '', en_possession: true, peremption: '', est_plant: false }; const nouvelleGraine = ref({ ...graineParDefaut }); 
-function ouvrirModalGraine(g = null) { if (g) { modeEdition.value = true; nouvelleGraine.value = { ...g }; } else { modeEdition.value = false; nouvelleGraine.value = { ...graineParDefaut }; } afficherModal.value = true; }
-function sauvegarderGraine() { if (modeEdition.value) { const index = grainotheque.value.findIndex(g => g.id === nouvelleGraine.value.id); if (index !== -1) grainotheque.value[index] = { ...nouvelleGraine.value }; } else { nouvelleGraine.value.id = Date.now(); if(!grainotheque.value) grainotheque.value = []; grainotheque.value.push({ ...nouvelleGraine.value }); } afficherModal.value = false; }
+function plantDots(bed) {
+  return (bed.plantings || []).flatMap(p => Array.from({ length: Number(p.quantity) || 0 }, () => ({ name: p.name, icon: p.icon || '🌱' })));
+}
+function plantGridStyle(bed) {
+  const count = plantDots(bed).length;
+  if (count === 0) return { display: 'none' };
+  const columns = Math.ceil(Math.sqrt(count));
+  const rows = Math.ceil(count / columns);
+  return { display: 'grid', gridTemplateColumns: `repeat(${columns}, 1fr)`, gridTemplateRows: `repeat(${rows}, 1fr)`, width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, padding: '8px', alignItems: 'center', justifyItems: 'center', pointerEvents: 'none' };
+}
 
-function supprimerGraine(id) { 
-  demanderConfirmation("Supprimer ce végétal de l'encyclopédie ? (Vos godets existants ne seront pas impactés)", () => {
-    grainotheque.value = grainotheque.value.filter(g => g.id !== id);
+// --- Planting, bed management, history ---
+const plantingBed = ref(null);
+const plantingForm = ref({ seed: null, quantity: 1 });
+function openPlantingModal(bed) {
+  if (seeds.value.length === 0) { showInfo(t('garden.planting.no_seeds')); return; }
+  plantingBed.value = bed;
+  plantingForm.value = { seed: null, quantity: 1 };
+}
+const companionCheck = computed(() => {
+  const seed = plantingForm.value.seed;
+  if (!plantingBed.value || !seed) return { good: [], bad: [] };
+  const others = plantNamesIn(plantingBed.value);
+  return {
+    good: others.filter(name => companionship(seed.name, name).good),
+    bad: others.filter(name => companionship(seed.name, name).bad),
+  };
+});
+function savePlanting() {
+  const { seed, quantity } = plantingForm.value;
+  const bed = plantingBed.value;
+  bed.plantings.push({ seed_id: seed.id, name: seed.name, icon: seed.icon, quantity, planted_on: currentYearMonth() });
+  bed.last_watered = Date.now();
+  plantingBed.value = null;
+}
+
+const managedBed = ref(null);
+function openManageBed(bed) {
+  bed.plantings.forEach(p => { if (!p.planted_on) p.planted_on = currentYearMonth(); });
+  managedBed.value = bed;
+}
+function removePlanting(index) {
+  askConfirmation(t('garden.manage.confirm_remove'), () => {
+    const bed = managedBed.value;
+    const [removed] = bed.plantings.splice(index, 1);
+    bed.archive = [...(bed.archive || []), { ...removed, removed_on: currentYearMonth() }];
   });
 }
 
-const afficherModalPlantation = ref(false); const parcelleSelectionnee = ref(null); const nouvellePlantation = ref({ graine: '', quantite: 1 }); 
-function ouvrirModalPlantation(parcelle) { if (!grainotheque.value || grainotheque.value.length === 0) { alert("Ajoutez des plantes d'abord !"); return; } parcelleSelectionnee.value = parcelle; nouvellePlantation.value = { graine: '', quantite: 1 }; afficherModalPlantation.value = true; }
-function fermerModalPlantation() { afficherModalPlantation.value = false; parcelleSelectionnee.value = null; }
-function validerPlantation() { if (parcelleSelectionnee.value && nouvellePlantation.value.graine) { const saison = saisonActive.value === 'ete' ? 'plantations_ete' : 'plantations_hiver'; if (!parcelleSelectionnee.value[saison]) parcelleSelectionnee.value[saison] = []; parcelleSelectionnee.value[saison].push({ id_graine: nouvellePlantation.value.graine.id, nom: nouvellePlantation.value.graine.nom, icone: nouvellePlantation.value.graine.icone, quantite: nouvellePlantation.value.quantite, date_plantation: getCurrentYearMonth() }); parcelleSelectionnee.value.dernier_arrosage = Date.now(); syncParcellesForcer(); fermerModalPlantation(); } }
-
-const afficherModalGestionBac = ref(false); const plantesEnGestion = ref([]); const parcelleEnGestion = ref(null); 
-function ouvrirModalGestionBac(parcelle) { parcelleEnGestion.value = parcelle; const saison = saisonActive.value === 'ete' ? 'plantations_ete' : 'plantations_hiver'; plantesEnGestion.value = parcelle[saison] || []; plantesEnGestion.value.forEach(p => { if(!p.date_plantation) p.date_plantation = getCurrentYearMonth(); }); afficherModalGestionBac.value = true; }
-
-function retirerPlanteDuBac(index) { 
-  demanderConfirmation("Retirer cette plante du bac ? (Elle sera conservée dans l'historique des récoltes)", () => {
-    const planteCible = plantesEnGestion.value[index];
-    if (!parcelleEnGestion.value.archives) parcelleEnGestion.value.archives = [];
-    parcelleEnGestion.value.archives.push({
-      ...planteCible,
-      saison: saisonActive.value,
-      date_retrait: getCurrentYearMonth()
-    });
-    plantesEnGestion.value.splice(index, 1); 
-    syncParcellesForcer();
-  });
-}
-
-const parcelleHistoriqueSelectionnee = ref(null); 
-function ouvrirHistorique(parcelle) { parcelleHistoriqueSelectionnee.value = parcelle; }
-function fermerHistorique() { parcelleHistoriqueSelectionnee.value = null; }
-
-const historiqueParcelle = computed(() => { 
-  if (!parcelleHistoriqueSelectionnee.value) return []; 
-  const p = parcelleHistoriqueSelectionnee.value; 
-  const toutesPlantations = []; 
-  
-  if (p.plantations_ete) p.plantations_ete.forEach(pl => toutesPlantations.push({...pl, saison: 'ete', active: true})); 
-  if (p.plantations_hiver) p.plantations_hiver.forEach(pl => toutesPlantations.push({...pl, saison: 'hiver', active: true})); 
-  if (p.archives) p.archives.forEach(pl => toutesPlantations.push({...pl, active: false}));
-
-  toutesPlantations.sort((a, b) => { 
-    const dateA = a.date_plantation || '1970-01'; 
-    const dateB = b.date_plantation || '1970-01'; 
-    return dateB.localeCompare(dateA); 
-  }); 
-
-  const groupes = []; 
-  let currentGroup = null; 
-  toutesPlantations.forEach(pl => { 
-    const d = pl.date_plantation || ''; 
-    if (!currentGroup || currentGroup.date !== d) { 
-      currentGroup = { date: d, formatted: formatMoisAnnee(d), plantes: [] }; 
-      groupes.push(currentGroup); 
-    } 
-    currentGroup.plantes.push(pl); 
-  }); 
-  return groupes; 
+const historyPlot = ref(null);
+function openHistory(bed) { historyPlot.value = bed; }
+function closeHistory() { historyPlot.value = null; }
+const historyGroups = computed(() => {
+  const bed = historyPlot.value;
+  if (!bed) return [];
+  const entries = [
+    ...(bed.plantings || []).map(p => ({ ...p, active: true })),
+    ...(bed.archive || []).map(p => ({ ...p, active: false })),
+  ].sort((a, b) => (b.planted_on || '').localeCompare(a.planted_on || ''));
+  const groups = [];
+  for (const entry of entries) {
+    const date = entry.planted_on || '';
+    if (groups.at(-1)?.date !== date) groups.push({ date, label: formatMonthYear(date), plants: [] });
+    groups.at(-1).plants.push(entry);
+  }
+  return groups;
 });
 
-function obtenirPlantesUnitaires(parcelle) { const plantes = []; const saison = saisonActive.value === 'ete' ? 'plantations_ete' : 'plantations_hiver'; if (!parcelle[saison]) return plantes; parcelle[saison].forEach(pl => { for (let i = 0; i < pl.quantite; i++) { plantes.push({ nom: pl.nom, icone: pl.icone || '🌱' }) } }); return plantes; }
-function calculerGrillePlantes(parcelle) { const totalPlants = obtenirPlantesUnitaires(parcelle).length; if (totalPlants === 0) return { display: 'none' }; const colonnes = Math.ceil(Math.sqrt(totalPlants)); const lignes = Math.ceil(totalPlants / colonnes); return { display: 'grid', gridTemplateColumns: `repeat(${colonnes}, 1fr)`, gridTemplateRows: `repeat(${lignes}, 1fr)`, width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, padding: '8px', alignItems: 'center', justifyItems: 'center', pointerEvents: 'none' }; }
-
-const culturesPlantees = computed(() => { const recap = {}; (parcelles.value || []).forEach(p => { const saison = saisonActive.value === 'ete' ? 'plantations_ete' : 'plantations_hiver'; if ((!p.type || p.type === 'bac') && p[saison]) { p[saison].forEach(pl => { if (!recap[pl.id_graine]) { recap[pl.id_graine] = { id: pl.id_graine, nom: pl.nom, icone: pl.icone, quantiteTotale: 0, type: 'Inconnu' } }; recap[pl.id_graine].quantiteTotale += pl.quantite; }); } }); return Object.values(recap).sort((a, b) => b.quantiteTotale - a.quantiteTotale); });
-
-const totalPlantsCultives = computed(() => culturesPlantees.value.reduce((acc, c) => acc + c.quantiteTotale, 0));
-const bacsTotal = computed(() => (parcelles.value || []).filter(p => !p.type || p.type === 'bac').length);
-const bacsUtilises = computed(() => (parcelles.value || []).filter(p => { const saison = saisonActive.value === 'ete' ? 'plantations_ete' : 'plantations_hiver'; return (!p.type || p.type === 'bac') && p[saison] && p[saison].length > 0; }).length);
-
-</script>
-
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Inter:wght@300;400;500;600;700&display=swap');
-:root { --bg-app: #f4f6f5; --bg-sidebar: #131b16; --accent-gold: #d4af37; --text-main: #2c3e35; --text-muted: #758a7e; --border-light: #e0e5e2; --wood-border: #5d4037; --soil-bg: #3e2723; --grass-bg: #4a6b44; }
-body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-app); color: var(--text-main); overflow: hidden; -webkit-font-smoothing: antialiased;}
-.layout { display: flex; height: 100vh; width: 100vw; position: relative; }
-.content { flex-grow: 1; display: flex; flex-direction: column; height: 100vh; transition: width 0.3s; width: 100%;}
-.vue-scrollable { overflow-y: auto; padding: 40px; height: 100%; background: white; box-sizing: border-box;}
-
-/* MOBILE ELEMENTS */
-.btn-hamburger { position: fixed; top: 15px; left: 15px; z-index: 900; background: white; border: 1px solid var(--border-light); border-radius: 8px; font-size: 24px; padding: 5px 12px; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.1); color: var(--text-main); display: none;}
-
-/* --- SIDEBAR --- */
-.sidebar { width: 280px; background: var(--bg-sidebar); color: white; padding: 30px 20px; flex-shrink: 0; z-index: 2000; display: flex; flex-direction: column; position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);}
-.sidebar.reduit { width: 80px; padding: 30px 10px; align-items: center;}
-.btn-toggle-menu { position: absolute; top: 35px; right: -14px; width: 28px; height: 28px; border-radius: 50%; background: white; border: 1px solid var(--border-light); color: var(--text-main); font-size: 18px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 30;}
-.btn-close-mobile { display: none; position: absolute; top: 15px; right: 15px; background: transparent; border: none; color: white; font-size: 30px; cursor: pointer; }
-.logo-container { display: flex; flex-direction: column; align-items: center; gap: 15px; margin-bottom: 40px; transition: all 0.3s; }
-.logo-img { width: 150px; height: auto; transition: all 0.3s; opacity: 0.9; }
-.sidebar.reduit .logo-container .logo-img { width: 50px; }
-.titre-sensuel { font-family: 'Cinzel Decorative', serif; font-size: 1.4em; margin: 0; text-align: center; color: var(--accent-gold); font-weight: 700; letter-spacing: 1.5px; line-height: 1.3;}
-.sidebar ul { list-style: none; padding: 0; margin: 0; flex-grow: 1; width: 100%;}
-.sidebar li { position: relative; padding: 12px 16px; cursor: pointer; margin-bottom: 8px; border-radius: 6px; font-weight: 400; font-size: 0.95em; color: rgba(255,255,255,0.6); display: flex; align-items: center; gap: 12px; transition: all 0.2s; border: 1px solid transparent; position: relative;}
-.sidebar li .icone { width: 28px; text-align: center; display: inline-block; font-size: 1.2em; opacity: 0.7; }
-.sidebar li:hover { color: white; background: rgba(255,255,255,0.03); }
-.sidebar li.actif { background: rgba(212, 175, 55, 0.08); color: var(--accent-gold); border: 1px solid rgba(212, 175, 55, 0.2); font-weight: 500;}
-.sidebar li.actif .icone { opacity: 1; }
-
-.badge-notif { background: #f44336; color: white; font-size: 0.7em; padding: 2px 6px; border-radius: 10px; font-weight: bold; margin-left: auto; }
-.badge-notif-mini { position: absolute; top: 10px; right: 25px; background: #f44336; width: 8px; height: 8px; border-radius: 50%; }
-
-.menu-bottom-actions { display: flex; flex-direction: column; gap: 10px; margin-top: auto;}
-
-/* ALERTE GEL MENU NOUVEAU CSS */
-.alerte-gel-menu { background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9; padding: 12px; border-radius: 6px; font-size: 0.85em; font-weight: bold; display: flex; align-items: center; gap: 8px; text-align: center; justify-content: center; animation: pulseGel 2s infinite; }
-.sidebar.reduit .alerte-gel-menu { padding: 12px 0; justify-content: center; }
-.icone-gel { font-size: 1.2em; }
-@keyframes pulseGel { 0% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(33, 150, 243, 0); } 100% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0); } }
-
-.btn-ajouter-graine { padding: 14px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: transparent; color: var(--accent-gold); border: 1px solid var(--accent-gold); border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.95em; transition: all 0.2s;}
-.btn-ajouter-graine:hover { background: var(--accent-gold); color: var(--bg-sidebar); }
-
-.btn-arroser-tout { padding: 14px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: #0288d1; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.95em; transition: background 0.2s; box-shadow: 0 4px 10px rgba(2, 136, 209, 0.4);}
-.btn-arroser-tout:hover { background: #0277bd; }
-
-/* --- POTAGER --- */
-.vue-potager { position: relative; height: 100%; width: 100%; display: flex; overflow: hidden;}
-.workspace-terrain { flex-grow: 1; height: 100%; position: relative; overflow: hidden; background-color: var(--grass-bg); transition: background-color 1s ease; touch-action: none; }
-.workspace-terrain.mode-ete { background-color: #5f8d4e; background-image: linear-gradient(115deg, rgba(255,255,255,0.03) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.03) 75%, rgba(255,255,255,0.03)), linear-gradient(245deg, rgba(0,0,0,0.03) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.03) 75%, rgba(0,0,0,0.03)); background-size: 20px 20px; }
-
-/* MODIFICATION COULEUR MODE HIVER */
-.workspace-terrain.mode-hiver { background-color: #8fa693; }
-
-/* ANIMATION NEIGE GLOBALE (CORRIGÉE AVEC BEFORE) */
-.workspace-terrain.mode-hiver::before { content: ''; position: absolute; top:0; left:0; width: 100%; height: 100%; pointer-events: none; z-index: 10; background-image: radial-gradient(rgba(255,255,255,0.9) 1px, transparent 2px), radial-gradient(rgba(255,255,255,0.8) 1px, transparent 2px); background-size: 50px 50px, 70px 70px; background-position: 0 0, 25px 25px; animation: neige 20s linear infinite; }
-@keyframes neige { from { background-position: 0 0, 25px 25px; } to { background-position: 500px 1000px, 725px 1000px; } }
-
-/* ANIMATION PLUIE GLOBALE */
-.pluie-globale-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 99; background: rgba(3, 169, 244, 0.1); background-image: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0.3)); animation: fadeInOut 2.5s ease; }
-.pluie-globale-overlay::after { content: '💧 💧 💧 💧 💧 💧 💧 💧 💧 💧 💧 💧 💧 💧'; font-size: 24px; position: absolute; top: -50px; left: 0; width: 100%; display: flex; justify-content: space-around; animation: pluieAnimGlobal 0.4s linear infinite; }
-@keyframes pluieAnimGlobal { 0% { transform: translateY(-50px); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateY(100vh); opacity: 0; } }
-@keyframes fadeInOut { 0% { opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { opacity: 0; } }
-
-/* --- BARRE D'OUTILS GAUCHE --- */
-.toolbar-vertical { position: absolute; top: 20px; left: 20px; display: flex; flex-direction: column; gap: 8px; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); padding: 10px; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.15); z-index: 110; pointer-events: auto; }
-.btn-tool-v { width: 44px; height: 44px; border: none; background: transparent; border-radius: 8px; font-size: 1.4em; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-muted); transition: 0.2s; }
-.btn-tool-v:hover { background: #f0f4f1; color: var(--text-main); }
-.btn-tool-v.actif { background: white; color: var(--text-main); box-shadow: 0 2px 5px rgba(0,0,0,0.1); border: 2px solid var(--accent-gold); }
-.zoom-text-v { font-size: 0.7em; font-weight: bold; text-align: center; color: var(--text-main); }
-.separateur-v { width: 60%; height: 2px; background: var(--border-light); margin: 2px auto; }
-.btn-saison-v { font-size: 1.6em; }
-.arrosoir-global-btn { color: #0288d1; }
-
-.terrain-infini { position: absolute; width: 10000px; height: 10000px; left: 50%; top: 50%; margin-left: -5000px; margin-top: -5000px; background-image: linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px); background-size: 40px 40px, 40px 40px; cursor: crosshair; transform-origin: center center; z-index: 1;}
-.centre-absolu { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); color: rgba(255,255,255,0.5); font-weight: 500; font-size: 0.8em; pointer-events: none;}
-
-/* ELEMENTS DU TERRAIN UNIFIÉS */
-.element-terrain { position: absolute; display: flex; justify-content: center; align-items: center; cursor: grab; transition: border-color 0.5s; box-sizing: border-box; }
-.element-terrain.en-mouvement { z-index: 100; cursor: grabbing; box-shadow: 0 15px 30px rgba(0,0,0,0.4), inset 0 2px 5px rgba(0,0,0,0.4); transform: scale(1.01);}
-.element-terrain.en-cours-dessin { opacity: 0.7; pointer-events: none; }
-
-/* TYPE: BAC */
-.element-terrain.type-bac { border: 10px solid var(--wood-border); border-radius: 4px; box-shadow: 0 5px 10px rgba(0,0,0,0.3), inset 0 2px 5px rgba(0,0,0,0.4); background: var(--wood-border); }
-.element-terrain.type-bac.en-cours-dessin { background: transparent; border: 4px dashed var(--wood-border); }
-.element-terrain.type-bac.en-cours-dessin .terre-interieure { background-color: rgba(62, 39, 35, 0.3); background-image: none; box-shadow: none;}
-.terre-interieure { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--soil-bg); border-radius: 2px; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); overflow: hidden; transition: background-color 0.5s; }
-
-/* TYPE: BORDURE (Clôture) */
-.element-terrain.type-bordure { height: 12px; background: #8B5A2B; background-image: repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(0,0,0,0.1) 5px, rgba(0,0,0,0.1) 10px); border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.4); transform-origin: 0 50%; }
-
-/* TYPE: ARBRE & DECO */
-.element-terrain.type-arbre, .element-terrain.type-deco { background: transparent; border: 2px dashed transparent; border-radius: 8px; transform: translate(-50%, -50%); width: 60px !important; height: 60px !important;}
-.element-terrain.type-arbre:hover, .element-terrain.type-deco:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.8); }
-.element-terrain.type-arbre::before { content: '🌳'; display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; filter: drop-shadow(0 10px 10px rgba(0,0,0,0.4)); line-height: 1; }
-.element-terrain.type-arbre.taille-Petit { width: 40px !important; height: 40px !important; }
-.element-terrain.type-arbre.taille-Petit::before { font-size: 40px; }
-.element-terrain.type-arbre.taille-Moyen { width: 80px !important; height: 80px !important; }
-.element-terrain.type-arbre.taille-Moyen::before { font-size: 80px; }
-.element-terrain.type-arbre.taille-Grand { width: 140px !important; height: 140px !important; }
-.element-terrain.type-arbre.taille-Grand::before { font-size: 140px; }
-
-.icone-deco { display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; filter: drop-shadow(0 5px 5px rgba(0,0,0,0.3)); line-height: 1; font-size: 40px;}
-
-.workspace-terrain.mode-hiver .element-terrain.type-bac { border-color: #6a5e5a; }
-.workspace-terrain.mode-hiver .element-terrain.type-bac .terre-interieure { background-color: #554d48; }
-.workspace-terrain.mode-hiver .element-terrain.type-bordure { background: #6a5e5a; }
-
-.pluie-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 169, 244, 0.2); z-index: 20; pointer-events: none; overflow: hidden; border-radius: 2px;}
-.pluie-container::before { content: '💧💧💧💧💧💧'; position: absolute; font-size: 14px; top: -20px; animation: pluieAnim 0.5s linear infinite; display: flex; flex-wrap: wrap; text-align: center; width: 100%; justify-content: space-around;}
-@keyframes pluieAnim { 0% { transform: translateY(-10px); opacity: 1; } 100% { transform: translateY(100px); opacity: 0; } }
-
-.indicateur-soif { position: absolute; bottom: 10px; right: 10px; font-size: 24px; animation: clignoteSoif 1.5s infinite; z-index: 15; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); pointer-events: none;}
-@keyframes clignoteSoif { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.9); } }
-
-/* BOUTONS ACTIONS FLOTTANTS COMMUNS À TOUS LES ÉLÉMENTS */
-.parcelle-actions-container { position: absolute; top: -45px; left: 50%; transform: translateX(-50%); display: none; gap: 6px; background: white; padding: 6px 10px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 1000; white-space: nowrap; }
-.element-terrain:hover .parcelle-actions-container { display: flex; }
-.btn-action-parcelle { width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--border-light); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; background: white; transition: 0.2s; }
-.btn-action-parcelle:hover { border-color: var(--text-main); transform: scale(1.1); }
-.btn-supprimer { color: #d32f2f; }
-.btn-planter { color: #388e3c; }
-.btn-arroser { color: #0288d1; background: #e1f5fe; border-color: #0288d1; } 
-.btn-gerer { color: #1976d2; }
-.btn-historique { color: #8e24aa; }
-
-.grille-plantes { z-index: 5; } .plante-visuelle { font-size: 1.2em; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5));}
-.label-dim { position: absolute; top: -22px; left: 50%; transform: translateX(-50%); font-size: 0.75em; font-weight: 700; color: #000; pointer-events: none; text-shadow: 1px 1px 2px rgba(255,255,255,0.7), -1px -1px 2px rgba(255,255,255,0.7); white-space: nowrap;}
-.label-dim-arbre { position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); font-size: 0.85em; font-weight: 700; color: #000; pointer-events: none; text-shadow: 1px 1px 2px rgba(255,255,255,0.8); white-space: nowrap; z-index: 30;}
-
-/* POIGNÉE DE REDIMENSIONNEMENT */
-.resize-handle { position: absolute; right: -8px; bottom: -8px; width: 16px; height: 16px; background: white; border: 3px solid var(--wood-border); border-radius: 50%; cursor: nwse-resize; z-index: 100;}
-.element-terrain.type-bordure .resize-handle { right: -8px; top: -2px; bottom: auto; cursor: crosshair; }
-
-.conflit-actif { animation: pulseRed 3s infinite; }
-@keyframes pulseRed { 0% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.5); border-color: #d32f2f; } 70% { box-shadow: 0 0 0 10px rgba(211, 47, 47, 0); border-color: var(--wood-border); } 100% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0); border-color: var(--wood-border); } }
-.indicateur-conflit { position: absolute; top: -12px; left: -12px; background: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 2px solid #d32f2f; z-index: 60; box-shadow: 0 2px 5px rgba(0,0,0,0.3); cursor: help;}
-
-/* MODALE DECO (Grille) */
-.grille-emojis-deco { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; background: #fafcfa; border: 1px solid var(--border-light); border-radius: 8px; padding: 15px; }
-.emoji-deco-item { font-size: 2.5rem; cursor: pointer; padding: 10px; border-radius: 12px; transition: 0.2s; border: 2px solid transparent; }
-.emoji-deco-item:hover { background: #e0e5e2; transform: scale(1.1); }
-.emoji-deco-item.actif { background: white; border-color: var(--accent-gold); box-shadow: 0 4px 10px rgba(0,0,0,0.1); transform: scale(1.1); }
-
-/* TIMELINE HISTORIQUE (PANNEAU DROIT) */
-.panel-historique { width: 320px; background: white; border-left: 1px solid var(--border-light); z-index: 120; display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: absolute; right: 0; top: 0; height: 100%; box-shadow: -5px 0 20px rgba(0,0,0,0.05);}
-.panel-historique.ouvert { transform: translateX(0); }
-.ph-header { padding: 20px; border-bottom: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center; background: #fafcfa;}
-.ph-header h3 { margin: 0; font-family: 'Cinzel Decorative', serif; font-size: 1.2em;}
-.btn-fermer-ph { background: transparent; border: none; font-size: 24px; cursor: pointer;}
-.ph-content { flex-grow: 1; overflow-y: auto; padding: 20px;}
-.timeline { border-left: 2px solid #e0e5e2; margin-left: 10px; padding-left: 20px; position: relative;}
-.tl-item { margin-bottom: 25px; position: relative;}
-.tl-item::before { content: ''; position: absolute; left: -25px; top: 2px; width: 10px; height: 10px; background: white; border: 2px solid var(--accent-gold); border-radius: 50%;}
-.tl-date { font-weight: bold; color: var(--accent-gold); margin-bottom: 10px; text-transform: capitalize;}
-.tl-plantes { display: flex; flex-direction: column; gap: 8px;}
-.tl-plante { display: flex; align-items: center; gap: 10px; background: #fafcfa; padding: 10px; border-radius: 8px; border: 1px solid var(--border-light);}
-.tl-icone { font-size: 1.5em; }
-.tl-info { display: flex; flex-direction: column; gap: 4px; }
-.tl-nom { font-size: 0.9em; font-weight: 500; color: var(--text-main); }
-.badge-saison-petit { font-size: 0.65em; font-weight: 700; padding: 2px 6px; border-radius: 4px; display: inline-block; text-transform: uppercase; align-self: flex-start; color: white;}
-.badge-saison-petit.ete { background: #f57f17; }
-.badge-saison-petit.hiver { background: #0288d1; }
-/* ARCHIVE HISTORIQUE */
-.plante-archivee { text-decoration: line-through; opacity: 0.6; }
-.badge-saison-petit.archive { background: #9e9e9e; }
-
-
-/* AUTRES VUES (COMMUNES) */
-.header-epure { margin-bottom: 30px; border-bottom: 1px solid var(--border-light); padding-bottom: 20px;}
-.header-epure h2 { margin: 0 0 5px 0; font-family: 'Cinzel Decorative', serif; font-size: 2em; color: var(--text-main);}
-.sous-titre { margin: 0; color: var(--text-muted); font-size: 1em;}
-.section-titre { font-family: 'Cinzel Decorative', serif; color: var(--text-main); font-size: 1.5em; border-bottom: 2px solid var(--border-light); padding-bottom: 10px; margin-bottom: 20px;}
-.flex-between { display: flex; justify-content: space-between; align-items: center; }
-
-.info-bulle { display: inline-block; background: #e1f5fe; color: #0277bd; padding: 10px 15px; border-radius: 8px; font-size: 0.85em; border: 1px solid #b3e5fc; line-height: 1.4;}
-.info-bulle b { color: #01579b; }
-
-.filtres-bar { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 25px; background: #fafcfa; padding: 15px; border-radius: 12px; border: 1px solid var(--border-light);}
-.search-group { flex: 2; position: relative; display: flex; align-items: center; min-width: 200px;}
-.search-icon { position: absolute; left: 12px; opacity: 0.5; font-size: 1.1em; pointer-events: none;}
-.search-group input { padding-left: 40px; }
-.select-group { flex: 1; display: flex; min-width: 150px;}
-
-.workspace-graines { margin-top: 10px; }
-.grid-graines { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px; }
-.carte-graine { background: white; border-radius: 12px; border: 1px solid var(--border-light); box-shadow: 0 4px 12px rgba(0,0,0,0.03); transition: all 0.2s; position: relative; overflow: hidden;}
-.carte-graine:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); border-color: #cbd4cf;}
-
-/* CARTE PERIMÉE NOUVEAU CSS */
-.carte-graine.is-perimee { background-color: #fffafb; border-color: #ffcdd2; }
-.carte-graine.is-perimee .icone-graine { filter: grayscale(1); opacity: 0.6; }
-.badge-perime { background-color: #ffebee; color: #c62828; border-color: #ffcdd2; font-weight: 600; }
-.badge-date { background-color: #e3f2fd; color: #0277bd; border-color: #b3e5fc; }
-.is-perimee .titre-graine h3 { text-decoration: line-through; opacity: 0.6; }
-
-.carte-godet { border-left: 4px solid #8d6e63; }
-.carte-pot { border-left: 4px solid #ab47bc; }
-.carte-pot-ext { border-left: 4px solid #f57f17; }
-.carte-actions { position: absolute; top: 12px; right: 12px; display: flex; gap: 6px; opacity: 0;}
-.carte-graine:hover .carte-actions { opacity: 1; }
-.btn-icon { background: white; border: 1px solid var(--border-light); border-radius: 4px; padding: 4px 8px; cursor: pointer; color: var(--text-muted); font-size: 14px;}
-.carte-contenu { padding: 24px;}
-.carte-top { display: flex; gap: 15px; align-items: flex-start; margin-bottom: 20px;}
-.icone-graine { font-size: 2.5em; background: #f4f6f5; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 12px; border: 1px solid var(--border-light); transition: 0.2s; }
-.titre-graine { display: flex; flex-direction: column; gap: 6px; flex-grow: 1;}
-.titre-graine h3 { margin: 0; font-size: 1.2em; color: var(--text-main); font-weight: 600; line-height: 1.2; transition: 0.2s;}
-
-.badge-action-possession { background: #f4f6f5; color: var(--text-muted); border: 1px solid var(--border-light); padding: 4px 8px; border-radius: 6px; font-size: 0.7em; cursor: pointer; font-weight: 600; transition: all 0.2s; font-family: inherit;}
-.badge-action-possession.possede { background: #e8f5e9; color: #2e7d32; border-color: #a5d6a7; }
-.badge-action-possession:hover { filter: brightness(0.95); }
-
-.badge { align-self: flex-start; background: #f0f4f1; color: var(--text-muted); padding: 4px 10px; border-radius: 4px; font-size: 0.75em; font-weight: 500; border: 1px solid #e0e5e2;}
-.badge-interieur { background: #f3e5f5; color: #8e24aa; border-color: #e1bee7; }
-.badge-exterieur { background: #fff8e1; color: #f57f17; border-color: #ffecb3; }
-.badge-plant { background: #e8f5e9; color: #2e7d32; border-color: #c8e6c9; }
-.badge-seed { background: #fff3e0; color: #e65100; border-color: #ffe0b2; }
-
-.badge-godet-actif { background: #efebe9; color: #5d4037; font-size: 0.65em; padding: 2px 6px; border-radius: 4px; border: 1px solid #d7ccc8; font-weight: 600;}
-.infos-agronomiques { background: #fafcfa; padding: 15px; border-radius: 8px; border: 1px dashed var(--border-light); display: flex; flex-direction: column; gap: 10px;}
-.infos-agronomiques-mini-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 5px; }
-.info-tag { background: #e0e5e2; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; margin: 0; }
-.ligne-saison { display: flex; align-items: center; gap: 8px; font-size: 0.85em; color: var(--text-main);}
-
-/* --- CONSEILS ASSOCIATIONS --- */
-.carte-conseil { border-left: 4px solid #4caf50; }
-.assoc-titre { margin: 0 0 15px 0; color: var(--text-main); font-size: 1.4em; border-bottom: 1px solid var(--border-light); padding-bottom: 10px;}
-.assoc-bloc { background: #fafcfa; border-radius: 8px; padding: 15px;}
-.assoc-bloc.fav { border: 1px dashed #c8e6c9; }
-.assoc-bloc.defav { border: 1px dashed #ffcdd2; }
-.assoc-header { font-size: 0.9em; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;}
-.assoc-icon { font-size: 1.2em; }
-.tags-container { display: flex; flex-wrap: wrap; gap: 8px;}
-.tag { font-size: 0.75em; padding: 4px 10px; border-radius: 12px; font-weight: 500; text-transform: capitalize;}
-.tag-fav { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9;}
-.tag-defav { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2;}
-.tag-vide { background: #f5f5f5; color: #9e9e9e; font-style: italic;}
-
-.alerte-assoc { margin-top: 15px; padding: 12px 15px; border-radius: 8px; display: flex; align-items: flex-start; gap: 10px; font-size: 0.9em; line-height: 1.4;}
-.box-fav { background: #e8f5e9; border: 1px solid #c8e6c9; color: #2e7d32; }
-.box-defav { background: #ffebee; border: 1px solid #ffcdd2; color: #c62828; }
-
-/* --- ROTATION DES CULTURES & TABLEAUX --- */
-.rotation-grid { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 20px; position: relative; }
-.carte-rotation { flex: 1; min-width: 220px; background: white; border-radius: 12px; border: 1px solid var(--border-light); box-shadow: 0 4px 12px rgba(0,0,0,0.03); display: flex; flex-direction: column; position: relative; }
-.rotation-header { padding: 15px; border-top-left-radius: 12px; border-top-right-radius: 12px; color: white; display: flex; flex-direction: column; gap: 5px; }
-.rotation-header.legumineuses { background: #66bb6a; }
-.rotation-header.feuilles { background: #43a047; }
-.rotation-header.racines { background: #795548; }
-.rotation-header.fruits { background: #e53935; }
-.step-badge { background: rgba(0,0,0,0.2); align-self: flex-start; padding: 3px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
-.rotation-header h3 { margin: 0; font-size: 1.1em; }
-.carte-contenu-rot { padding: 15px; flex-grow: 1;}
-.desc-rotation { font-size: 0.9em; color: var(--text-muted); margin: 0; line-height: 1.4; }
-.tag-rotation { background: #f0f4f1; border: 1px solid var(--border-light); color: var(--text-main); }
-.arrow-next { position: absolute; right: -18px; top: 50%; transform: translateY(-50%); font-size: 24px; color: var(--border-light); z-index: 10; background: var(--bg-app); border-radius: 50%; width: 30px; height: 30px; display: flex; justify-content: center; align-items: center;}
-.show-on-mobile-inline { display: none; }
-
-.table-responsive { overflow-x: auto; }
-.table-familles { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid var(--border-light); }
-.table-familles th { background: #fafcfa; padding: 15px; text-align: left; color: var(--text-main); font-weight: 600; border-bottom: 1px solid var(--border-light); }
-.table-familles td { padding: 15px; border-bottom: 1px solid var(--border-light); font-size: 0.9em; color: var(--text-muted); }
-.table-familles tr:last-child td { border-bottom: none; }
-.badge-famille { padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 0.9em; color: white; display: inline-block;}
-.badge-famille.legumineuses { background: #66bb6a; }
-.badge-famille.feuilles { background: #43a047; }
-.badge-famille.racines { background: #795548; }
-.badge-famille.fruits { background: #e53935; }
-
-.tips-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
-.tip-card { background: #fafcfa; border: 1px solid var(--border-light); border-radius: 12px; padding: 20px; display: flex; gap: 15px; align-items: flex-start; }
-.tip-icon { font-size: 2em; line-height: 1; }
-.tip-content h4 { margin: 0 0 5px 0; color: var(--text-main); font-size: 1.1em; }
-.tip-content p { margin: 0; font-size: 0.9em; color: var(--text-muted); line-height: 1.4; }
-
-/* --- ALERTES SAISONS & NOTIFICATIONS --- */
-.alertes-grid { display: flex; flex-direction: column; gap: 30px; }
-.alertes-container { background: #fff8e1; border: 1px solid #ffecb3; padding: 20px; border-radius: 12px; margin-bottom: 30px;}
-.arrosage-container { background: #e1f5fe; border-color: #81d4fa; }
-.alertes-container h3 { margin: 0 0 15px 0; font-size: 1.1em; color: #f57f17; display: flex; align-items: center; gap: 8px;}
-.arrosage-container h3 { color: #0288d1; }
-.liste-alertes { display: flex; flex-direction: column; gap: 10px; }
-.alerte-item { display: flex; align-items: center; gap: 12px; padding: 12px 15px; background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); border-left: 4px solid #ccc;}
-.alerte-item.godet { border-left-color: #8d6e63; }
-.alerte-item.semis { border-left-color: #4caf50; }
-.alerte-item.recolte { border-left-color: #ff9800; }
-.alerte-item.arrosage { border-left-color: #03a9f4; }
-.alerte-icone { font-size: 1.5em; }
-.alerte-texte { font-size: 0.9em; color: var(--text-main); flex-grow: 1;}
-.alerte-texte b { color: var(--text-main); font-weight: 600; }
-.arrosage-sous-texte { display: block; font-size: 0.85em; color: #666; margin-top: 4px; }
-.btn-arroser-petit { background: #03a9f4; color: white; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85em; transition: 0.2s;}
-.btn-arroser-petit:hover { background: #0288d1; }
-
-.mt-15 { margin-top: 15px; }
-.mt-30 { margin-top: 30px; }
-.mb-15 { margin-bottom: 15px; }
-.mb-30 { margin-bottom: 30px; }
-
-/* STATS ET MÉTÉO */
-.meteo-dashboard { display: flex; gap: 20px; background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%); border-radius: 16px; padding: 25px; border: 1px solid #80deea; color: #006064; box-shadow: 0 8px 24px rgba(0,0,0,0.05);}
-.meteo-current { flex: 1; display: flex; flex-direction: column; justify-content: center; border-right: 1px solid rgba(0, 151, 167, 0.2); padding-right: 20px;}
-.meteo-city { font-weight: 600; font-size: 1.1em; margin-bottom: 10px; opacity: 0.8;}
-.meteo-main { display: flex; align-items: center; gap: 15px;}
-.meteo-icon-large { font-size: 4em; line-height: 1;}
-.meteo-temp-large { font-size: 3.5em; font-weight: 700; font-family: 'Cinzel Decorative', serif;}
-.meteo-desc { font-weight: 500; text-transform: uppercase; letter-spacing: 1px; margin-top: 5px; opacity: 0.8; font-size: 0.9em;}
-.meteo-forecast-grid { flex: 2; display: flex; gap: 15px; align-items: center;}
-.forecast-card { flex: 1; background: rgba(255,255,255,0.6); backdrop-filter: blur(4px); padding: 15px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; gap: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.02);}
-.fc-date { font-weight: 600; text-transform: capitalize; color: #00838f;}
-.fc-icon { font-size: 2em; }
-.fc-temp { font-weight: 700; color: #006064;}
-
-.meteo-placeholder { width: 100%; background: #fafcfa; border: 2px dashed var(--border-light); padding: 30px; border-radius: 16px; display: flex; align-items: center; gap: 20px; cursor: pointer; color: var(--text-muted); transition: 0.2s;}
-.meteo-placeholder:hover { background: white; border-color: var(--accent-gold); color: var(--accent-gold);}
-.meteo-placeholder.erreur { border-color: #ffcdd2; color: #d32f2f;}
-.meteo-placeholder.erreur:hover { background: #ffebee;}
-.placeholder-icon { font-size: 3em; }
-.placeholder-texte strong { font-size: 1.1em; display: block; margin-bottom: 5px;}
-.placeholder-texte p { margin: 0; font-size: 0.9em; opacity: 0.8;}
-
-.stats-dashboard { display: flex; gap: 20px; margin-bottom: 30px;}
-.stat-box { flex: 1; background: #fafcfa; border: 1px solid var(--border-light); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center;}
-.stat-valeur { font-size: 2.5em; font-weight: 700; color: var(--accent-gold); font-family: 'Cinzel Decorative', serif; line-height: 1;}
-.stat-label { font-size: 0.9em; font-weight: 500; color: var(--text-muted); margin-top: 5px; text-transform: uppercase; letter-spacing: 1px;}
-.etat-vide { text-align: center; padding: 60px 20px; background: #fafcfa; border: 1px dashed var(--border-light); border-radius: 12px; color: var(--text-muted);}
-.etat-vide-petit { text-align: center; padding: 30px 20px; background: #fafcfa; border: 1px dashed var(--border-light); border-radius: 8px; color: var(--text-muted); font-size: 0.9em;}
-.pleine-largeur { grid-column: 1 / -1; }
-.icone-graine-petit { font-size: 1.8em; background: #f4f6f5; width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: 1px solid var(--border-light);}
-.bulle-quantite { background: var(--text-main); color: white; padding: 8px 12px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1;}
-.godet-bulle { background: #8d6e63; }
-.qte-nombre { font-size: 1.4em; font-weight: 700; }
-.qte-label { font-size: 0.6em; text-transform: uppercase; opacity: 0.8;}
-
-/* --- RÉGLAGES --- */
-.grid-reglages { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-.carte-reglage { background: white; border-radius: 12px; border: 1px solid var(--border-light); overflow: hidden;}
-.carte-discord { border-top: 4px solid #5865F2; } 
-.carte-localisation { border-top: 4px solid #03a9f4; }
-.carte-donnees { border-top: 4px solid #4caf50; } 
-.reglage-header { background: #fafcfa; padding: 20px; border-bottom: 1px solid var(--border-light); display: flex; align-items: center; gap: 15px;}
-.reglage-icone { font-size: 1.8em; }
-.reglage-header h3 { margin: 0; font-size: 1.2em; color: var(--text-main); font-weight: 600;}
-.reglage-body { padding: 25px; display: flex; flex-direction: column; gap: 20px;}
-.reglage-desc { margin: 0; color: var(--text-muted); font-size: 0.9em; line-height: 1.4;}
-.separateur-horizontal { height: 1px; background: var(--border-light); margin: 5px 0;}
-.input-action { display: flex; gap: 10px; }
-.input-action input { flex-grow: 1; }
-.form-group { display: flex; flex-direction: column; }
-.form-group label { margin-bottom: 8px; font-weight: 500; font-size: 0.85em; color: var(--text-main);}
-input, select { padding: 10px; border: 1px solid var(--border-light); border-radius: 6px; font-family: inherit; font-size: 0.95em; transition: all 0.2s; background: #fafcfa; width: 100%; box-sizing: border-box;}
-input:focus, select:focus { border-color: var(--accent-gold); outline: none; background: white; box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);}
-.btn-submit { background: var(--text-main); color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s;}
-
-/* TOGGLE GENERAL */
-.toggle-container { display: flex; align-items: center; gap: 12px; cursor: pointer; user-select: none;}
-.toggle-container input { display: none; }
-.toggle-slider { width: 40px; height: 22px; background: #ccc; border-radius: 20px; position: relative; transition: 0.3s;}
-.toggle-slider::before { content: ""; position: absolute; width: 18px; height: 18px; background: white; border-radius: 50%; top: 2px; left: 2px; transition: 0.3s;}
-.toggle-container input:checked + .toggle-slider { background: var(--accent-gold); }
-.toggle-container input:checked + .toggle-slider::before { transform: translateX(18px); }
-.toggle-label { font-size: 0.9em; color: var(--text-main); font-weight: 500;}
-
-/* MODALES */
-.modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(19, 27, 22, 0.4); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 1000;}
-.modal { background: white; padding: 35px; border-radius: 12px; width: 420px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); border: 1px solid var(--border-light); max-height: 90vh; overflow-y: auto;}
-.modal-large { width: 600px; } 
-.modal h3 { font-family: 'Cinzel Decorative', serif; color: var(--text-main); margin: 0 0 5px 0; font-size: 1.5em;}
-.modal-desc { color: var(--text-muted); font-size: 0.9em; margin-bottom: 25px;}
-.form-row { display: flex; gap: 15px; width: 100%; margin-bottom: 15px;}
-.form-group.half { flex: 1; }
-.form-group.third { flex: 1; }
-.form-group.flex-grow { flex-grow: 1; }
-.help-text { font-size: 0.75em; color: #d32f2f; margin-top: 5px; }
-.icone-selector-container { width: 180px;}
-.icone-selector { display: flex; flex-wrap: wrap; gap: 4px; background: #fafcfa; border: 1px solid var(--border-light); border-radius: 6px; padding: 6px; height: 75px; overflow-y: auto;}
-.ico-choix { font-size: 1.2em; cursor: pointer; padding: 2px; border-radius: 4px; transition: all 0.2s; border: 1px solid transparent;}
-.ico-choix:hover { background: #e0e5e2;}
-.ico-choix.ico-actif { background: white; border-color: var(--accent-gold); box-shadow: 0 2px 4px rgba(0,0,0,0.1); transform: scale(1.1);}
-.actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 30px; }
-.btn-cancel { background: transparent; color: var(--text-muted); padding: 10px 16px; border: 1px solid var(--border-light); border-radius: 6px; cursor: pointer; font-weight: 500;}
-.btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
-
-/* MODALE DE CONFIRMATION */
-.modal-confirm { text-align: center; width: 350px; padding: 25px; }
-.confirm-icon { font-size: 3em; margin-bottom: 10px; line-height: 1; }
-.btn-danger { background: #d32f2f; color: white; border: none; }
-.btn-danger:hover { background: #b71c1c; }
-
-/* LISTE IMPORT JSON */
-.liste-import-preview { max-height: 200px; overflow-y: auto; background: #fafcfa; border: 1px solid var(--border-light); border-radius: 8px; padding: 10px; margin-bottom: 20px; }
-.liste-import-preview ul { margin: 0; padding-left: 20px; color: var(--text-main); }
-.liste-import-preview li { margin-bottom: 8px; }
-
-.liste-gestion-plantes { display: flex; flex-direction: column; gap: 10px; }
-.item-gestion { display: flex; justify-content: space-between; align-items: center; background: #fafcfa; border: 1px solid var(--border-light); padding: 10px 15px; border-radius: 8px;}
-.item-info { display: flex; align-items: center; gap: 10px; font-weight: 500;}
-.item-details-flex { display: flex; flex-direction: column; gap: 4px; }
-.item-icone { font-size: 1.5em; }
-.item-actions { display: flex; gap: 10px; align-items: center;}
-input[type="number"].input-qte-petit { width: 60px; padding: 6px; text-align: center;}
-input[type="month"].input-date-petit { width: auto; padding: 6px; font-size: 0.85em; color: var(--text-muted); cursor: pointer;}
-
-
-/* ==========================================
-   MEDIA QUERIES (MOBILE RESPONSIVE)
-   ========================================== */
-@media (max-width: 768px) {
-  .layout { flex-direction: column; }
-  .btn-hamburger { display: block; }
-  .sidebar { position: fixed; top: 0; left: -100%; height: 100vh; width: 280px; box-shadow: 5px 0 15px rgba(0,0,0,0.5); overflow-y: auto; }
-  .sidebar.mobile-open { left: 0; }
-  .btn-close-mobile { display: block; }
-  .mobile-overlay { display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1999; }
-  .hide-on-mobile { display: none; }
-  .hide-on-mobile-small { display: none !important; }
-
-  .vue-scrollable { padding: 80px 15px 20px 15px; } 
-  .grid-reglages { grid-template-columns: 1fr; }
-  .block-mobile { display: flex; flex-direction: column; gap: 15px; align-items: flex-start !important; }
-  .full-width { width: 100% !important; }
-  .mt-mobile { margin-top: 10px; }
-  .block-mobile-small { flex-direction: column; align-items: flex-start; gap: 10px; }
-
-  .stats-dashboard { flex-direction: column; }
-
-  .toolbar-vertical { top: 70px; left: 10px; right: 10px; flex-direction: row; flex-wrap: wrap; justify-content: center; width: auto; padding: 6px; gap: 4px; }
-  .btn-tool-v { width: 38px; height: 38px; font-size: 1.2em; }
-  .separateur-v { width: 2px; height: 24px; margin: auto 4px; }
-
-  .carte-actions { opacity: 1; }
-  .flex-col-mobile { flex-direction: column; width: 100%; }
-  .full-width-mobile { width: 100%; }
-
-  .modal { padding: 20px; width: 95%; max-width: 400px; }
-  .form-row { flex-direction: column; gap: 10px; }
-  
-  .panel-historique { width: 100%; }
-  
-  /* ROTATION MOBILE */
-  .rotation-grid { flex-direction: column; }
-  .arrow-next.hide-on-mobile { display: none; }
-  .arrow-next.show-on-mobile-inline { display: flex; position: static; transform: none; margin: -10px auto; z-index: 10; background: transparent; }
-  .table-familles th, .table-familles td { padding: 10px; font-size: 0.8em; }
+// --- Overview ---
+const plantedCrops = computed(() => {
+  const crops = {};
+  for (const bed of plots.value.filter(p => p.type === 'bed')) {
+    for (const p of bed.plantings || []) {
+      const seed = seeds.value.find(s => s.id === p.seed_id);
+      crops[p.seed_id] ??= { id: p.seed_id, name: p.name, icon: p.icon, category: seed?.category, quantity: 0 };
+      crops[p.seed_id].quantity += Number(p.quantity) || 0;
+    }
+  }
+  return Object.values(crops).sort((a, b) => b.quantity - a.quantity);
+});
+const totalPlants = computed(() => plantedCrops.value.reduce((sum, c) => sum + c.quantity, 0));
+const totalBeds = computed(() => plots.value.filter(p => p.type === 'bed').length);
+const usedBeds = computed(() => plots.value.filter(p => p.type === 'bed' && p.plantings?.length).length);
+
+// --- Weather ---
+const weather = ref(null);
+const weatherError = ref(false);
+const frostDate = computed(() => {
+  const daily = weather.value?.daily;
+  if (!daily?.temperature_2m_min) return null;
+  const index = daily.temperature_2m_min.findIndex(min => min <= 0);
+  return index === -1 ? null : new Date(daily.time[index]).toLocaleDateString(locale.value, { day: '2-digit', month: '2-digit' });
+});
+async function loadWeather() {
+  if (!settings.value.city) { weatherError.value = false; weather.value = null; return; }
+  try {
+    const query = encodeURIComponent(settings.value.city.trim());
+    const geo = await (await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${query}&count=1&language=${locale.value}`)).json();
+    if (!geo.results?.length) { weatherError.value = true; weather.value = null; return; }
+    const { latitude, longitude, name } = geo.results[0];
+    const forecast = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum&current_weather=true&timezone=auto&forecast_days=10`)).json();
+    weather.value = { ...forecast, cityName: name };
+    weatherError.value = false;
+  } catch (e) { weatherError.value = true; weather.value = null; }
 }
-</style>
+function weatherEmoji(code) {
+  if (code === 0) return '☀️';
+  if (code > 0 && code < 4) return '⛅';
+  if (code > 44 && code < 49) return '🌫️';
+  if (code > 50 && code < 68) return '🌧️';
+  if (code > 70 && code < 80) return '❄️';
+  if (code > 94) return '⛈️';
+  return '🌤️';
+}
+
+// --- Discord ---
+async function testWebhook() {
+  try {
+    // Save first: the server sends the test to the stored URL
+    await api('/api/settings', { method: 'PUT', json: serialize(settings.value) });
+    const res = await api('/api/settings/test-webhook', { method: 'POST' });
+    showInfo(res.ok ? t('settings.discord.test_ok') : t('settings.discord.test_failed'));
+  } catch (e) {
+    showInfo(t('settings.discord.test_failed'));
+  }
+}
+
+// --- API keys ---
+const apiKeys = ref([]);
+const newKeyName = ref('');
+const createdKey = ref(null);
+const creatingKey = ref(false);
+const haKey = ref('');
+
+async function loadApiKeys() {
+  try { const res = await api('/api/api-keys'); if (res.ok) apiKeys.value = await res.json(); } catch (e) {}
+}
+async function createApiKey(name) {
+  creatingKey.value = true;
+  try {
+    const res = await api('/api/api-keys', { method: 'POST', json: JSON.stringify({ name }) });
+    if (!res.ok) { showInfo(t('apikeys.create_failed')); return null; }
+    const key = await res.json();
+    await loadApiKeys();
+    newKeyName.value = '';
+    createdKey.value = key;
+    return key;
+  } finally {
+    creatingKey.value = false;
+  }
+}
+async function createHaKey() {
+  const key = await createApiKey('Home Assistant');
+  if (key) { haKey.value = key.key; createdKey.value = null; }
+}
+function deleteApiKey(key) {
+  askConfirmation(t('apikeys.confirm_revoke', { name: key.name }), async () => {
+    await api(`/api/api-keys/${key.id}`, { method: 'DELETE' });
+    if (createdKey.value?.id === key.id) createdKey.value = null;
+    await loadApiKeys();
+  });
+}
+
+// --- Home Assistant tab ---
+const HA_REPOSITORY = 'https://github.com/emeryn/ha-mysecretgarden';
+const serverUrl = window.location.origin;
+const recentlyCopied = ref('');
+
+async function copy(text, key) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (e) {
+    // navigator.clipboard does not exist over plain HTTP (local IP access): fall back to execCommand
+    const area = document.createElement('textarea');
+    area.value = text; area.style.position = 'fixed'; area.style.opacity = '0';
+    document.body.appendChild(area); area.select();
+    try { document.execCommand('copy'); } catch (_) {}
+    document.body.removeChild(area);
+  }
+  recentlyCopied.value = key;
+  setTimeout(() => { if (recentlyCopied.value === key) recentlyCopied.value = ''; }, 1800);
+}
+
+// Same transformation Home Assistant uses to build entity ids (no accents, lowercase, "_")
+function slug(text) {
+  return String(text || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+// Home Assistant names entities in its own language: ids are shown for the current app language
+const entityId = (domain, device, entity) => `${domain}.${slug(device)}_${slug(t(`ha.names.${entity}`))}`;
+const gardenEntities = computed(() => [
+  entityId('binary_sensor', t('ha.names.garden'), 'watering_alert'),
+  entityId('sensor', t('ha.names.garden'), 'items_to_water'),
+  entityId('sensor', t('ha.names.garden'), 'total_plants'),
+  entityId('button', t('ha.names.garden'), 'water_all'),
+]);
+const seedlingEntities = computed(() => [
+  entityId('sensor', t('ha.names.seedlings'), 'seedling_total'),
+  entityId('sensor', t('ha.names.seedlings'), 'seedling_varieties'),
+]);
+const haDevices = computed(() => [
+  ...plots.value.filter(p => p.type === 'bed').map(p => ({ kind: 'bed', key: 'bed' + p.id, name: p.name || `Bed ${p.id}`, thirsty: bedNeedsWater(p) })),
+  ...pots.value.map(p => ({ kind: 'pot', key: 'pot' + p.id, name: p.name || `Pot ${p.id}`, thirsty: potNeedsWater(p) })),
+].map(d => ({
+  ...d,
+  entities: [
+    entityId('binary_sensor', d.name, 'needs_water'),
+    entityId('button', d.name, 'mark_watered'),
+    entityId('sensor', d.name, 'last_watered'),
+    ...(d.kind === 'bed' ? [entityId('sensor', d.name, 'plants')] : []),
+  ],
+})));
+
+const haExamples = computed(() => {
+  const bed = haDevices.value.find(d => d.kind === 'bed') || { name: t('ha.example_bed'), entities: [] };
+  const id = slug(bed.name);
+  const alert = gardenEntities.value[0];
+  return [
+    {
+      key: 'ex-valve',
+      title: t('ha.example_valve.title'),
+      desc: t('ha.example_valve.desc'),
+      yaml: `alias: "${t('ha.example_valve.alias', { name: bed.name })}"
+trigger:
+  - platform: time
+    at: "21:00:00"
+condition:
+  - condition: state
+    entity_id: ${entityId('binary_sensor', bed.name, 'needs_water')}
+    state: "on"
+action:
+  - service: switch.turn_on
+    target:
+      entity_id: switch.valve_${id}
+  - delay: "00:10:00"
+  - service: switch.turn_off
+    target:
+      entity_id: switch.valve_${id}
+  - service: button.press
+    target:
+      entity_id: ${entityId('button', bed.name, 'mark_watered')}`,
+    },
+    {
+      key: 'ex-notify',
+      title: t('ha.example_notify.title'),
+      desc: t('ha.example_notify.desc'),
+      yaml: `alias: "${t('ha.example_notify.alias')}"
+trigger:
+  - platform: state
+    entity_id: ${alert}
+    to: "on"
+action:
+  - service: notify.notify
+    data:
+      title: "My Secret Garden"
+      message: >-
+        ${t('ha.example_notify.message')} {{ (state_attr('${alert}', 'beds_to_water')
+        + state_attr('${alert}', 'pots_to_water')) | join(', ') }}`,
+    },
+  ];
+});
+
+// Keep the browser tab icon in sync with the brand
+onMounted(() => {
+  let link = document.querySelector("link[rel~='icon']");
+  if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
+  link.href = 'data:image/svg+xml,' + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍑</text></svg>");
+});
+</script>

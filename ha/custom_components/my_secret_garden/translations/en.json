@@ -1,0 +1,58 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect My Secret Garden",
+        "description": "Enter the address of your My Secret Garden server and an API key. Create the key in the app under Settings → API keys.",
+        "data": {
+          "api_url": "Server URL",
+          "api_key": "API key"
+        },
+        "data_description": {
+          "api_url": "Address reachable from Home Assistant, including the port (e.g. http://192.168.1.50:8000)."
+        }
+      },
+      "reauth_confirm": {
+        "title": "New API key required",
+        "description": "The server {url} rejected the current API key. Create a new one in the app under Settings → API keys.",
+        "data": {
+          "api_key": "API key"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot reach the server. Check the address and port.",
+      "invalid_auth": "The server rejected the API key.",
+      "unknown": "Unexpected error, check the logs."
+    },
+    "abort": {
+      "already_configured": "This server is already configured.",
+      "reauth_successful": "API key updated, the integration is reloading."
+    }
+  },
+  "device": {
+    "garden": { "name": "My garden" },
+    "seedlings": { "name": "Seedlings" }
+  },
+  "entity": {
+    "binary_sensor": {
+      "watering_alert": { "name": "Watering alert" },
+      "needs_water": { "name": "Needs water" }
+    },
+    "sensor": {
+      "total_plants": { "name": "Total plants" },
+      "items_to_water": { "name": "Items to water" },
+      "seedling_total": { "name": "Seedling trays" },
+      "seedling_varieties": { "name": "Varieties sown" },
+      "plants": { "name": "Plants" },
+      "last_watered": { "name": "Last watered" }
+    },
+    "button": {
+      "water_all": { "name": "Water everything" },
+      "mark_watered": { "name": "Mark as watered" }
+    }
+  },
+  "exceptions": {
+    "watering_failed": { "message": "Could not record the watering: {error}" }
+  }
+}

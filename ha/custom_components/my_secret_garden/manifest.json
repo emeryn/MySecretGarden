@@ -1,0 +1,13 @@
+{
+  "domain": "my_secret_garden",
+  "name": "My Secret Garden",
+  "version": "2.0.0",
+  "documentation": "https://github.com/emeryn/ha-mysecretgarden",
+  "issue_tracker": "https://github.com/emeryn/ha-mysecretgarden/issues",
+  "dependencies": [],
+  "codeowners": ["@emeryn"],
+  "requirements": [],
+  "config_flow": true,
+  "integration_type": "hub",
+  "iot_class": "local_polling"
+}

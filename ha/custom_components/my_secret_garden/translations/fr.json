@@ -1,0 +1,58 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connecter My Secret Garden",
+        "description": "Saisissez l'adresse de votre serveur My Secret Garden et une clé d'API. Créez la clé dans l'application, dans Réglages → Clés d'API.",
+        "data": {
+          "api_url": "URL du serveur",
+          "api_key": "Clé d'API"
+        },
+        "data_description": {
+          "api_url": "Adresse joignable depuis Home Assistant, avec le port (ex : http://192.168.1.50:8000)."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Nouvelle clé d'API requise",
+        "description": "Le serveur {url} refuse la clé d'API actuelle. Créez-en une nouvelle dans l'application, dans Réglages → Clés d'API.",
+        "data": {
+          "api_key": "Clé d'API"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Impossible de joindre le serveur. Vérifiez l'adresse et le port.",
+      "invalid_auth": "Clé d'API refusée par le serveur.",
+      "unknown": "Erreur inattendue, consultez les journaux."
+    },
+    "abort": {
+      "already_configured": "Ce serveur est déjà configuré.",
+      "reauth_successful": "Clé d'API mise à jour, l'intégration redémarre."
+    }
+  },
+  "device": {
+    "garden": { "name": "Mon potager" },
+    "seedlings": { "name": "Mes semis" }
+  },
+  "entity": {
+    "binary_sensor": {
+      "watering_alert": { "name": "Alerte arrosage" },
+      "needs_water": { "name": "Besoin d'eau" }
+    },
+    "sensor": {
+      "total_plants": { "name": "Total des plants" },
+      "items_to_water": { "name": "Éléments à arroser" },
+      "seedling_total": { "name": "Godets" },
+      "seedling_varieties": { "name": "Variétés en semis" },
+      "plants": { "name": "Plants" },
+      "last_watered": { "name": "Dernier arrosage" }
+    },
+    "button": {
+      "water_all": { "name": "Tout arroser" },
+      "mark_watered": { "name": "Valider l'arrosage" }
+    }
+  },
+  "exceptions": {
+    "watering_failed": { "message": "Impossible d'enregistrer l'arrosage : {error}" }
+  }
+}

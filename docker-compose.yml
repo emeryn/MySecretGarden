@@ -1,9 +1,14 @@
 services:
   mysecretgarden:
+    image: emeryn/mysecretgarden:latest
     build: .
     container_name: mysecretgarden
     ports:
       - "8000:8000"
     volumes:
       - ./data:/app/data
+    environment:
+      # Credentials of the web interface. Change them!
+      - APP_USERNAME=${APP_USERNAME:-admin}
+      - APP_PASSWORD=${APP_PASSWORD:-admin}
     restart: always
